@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Arithmatic operation</title>
+<link rel="stylesheet" type="text/css" href="form.css">
+<script type="text/javascript">
+function validate() {
+	let n1=document.getElementsByName("num1")[0].value;
+	let n2=document.getElementsByName("num2")[0].value;
+	if(n1===null||n1===""){
+		alert("Enter the Number1 field");
+		return false;
+	}
+	if(n2===null||n2===""){
+		alert("Enter the Number2 field");
+		return false;
+	}
+	
+}
+</script>
+</head>
+<body >
+
+	<form action="operation" onclick="return validate()">
+	
+	   <div class="form">
+      <div class="title"><h3>Arithmatic calculation</h3></div>
+      <div class="subtitle"></div>
+      <div class="input-container ic1">
+        <input id="Number1" class="input" name="num1" type="number" placeholder=" " />
+        <div class="cut"></div>
+        <label for="Number1" class="placeholder">Number1</label>
+      </div>
+      <div class="input-container ic2">
+        <input id="Number2" class="input" type="number" name="num2" placeholder=" " />
+        <div class="cut"></div>
+        <label for="Number2" class="placeholder">Number2</label>
+      </div>
+      
+      <button type="text" class="submit">submit</button>
+    </div>
+	
+	</form>
+</body>
+</html>
