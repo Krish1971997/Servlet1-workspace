@@ -1,0 +1,171 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE struts PUBLIC
+    "-//Apache Software Foundation//DTD Struts Configuration 2.5//EN"
+    "http://struts.apache.org/dtds/struts-2.5.dtd">
+
+<struts>
+	<constant name="struts.action.extension" value="," />
+	<package name="basicstruts2" extends="struts-default" namespace="/">
+
+		<action name="existing">
+                        <result>ExistingUser.jsp</result>
+                </action>
+                <action name="create">             
+                        <result>CreateSavingsAccount.jsp</result>
+                </action>
+
+		<action name="index">
+			<result>index.jsp</result>
+		</action>
+                <action name="userHome">
+                        <result>UserActions.jsp</result>
+                </action>
+		<action name="choose">
+            		<result>ChooseAccount.jsp</result>
+        	</action>
+		<action name="account">
+                        <result>AccountLogin.jsp</result>
+		</action>
+                <action name="accountOperations">
+                        <result>AccountOperations.jsp</result>
+		</action>
+                <action name="userAction">
+                        <result>UserActions.jsp</result>
+		</action>
+                <action name="EmployeeHome">
+                        <result>EmployeeHome.jsp</result>
+		</action>
+                <action name="NewUser">
+                        <result>NewUser.jsp</result>
+		</action>
+                <action name="Employeelogin">
+                        <result>EmployeeLogin.jsp</result>
+		</action>
+                <action name="WithdrawDeposit">    
+                        <result>WithdrawDeposit.jsp</result>    
+		</action>
+                <action name="logout">
+                        <result>logout.jsp</result>  
+		</action>
+                <action name="NewUserPage">
+                        <result>NewUserPage.jsp</result>  
+		</action>
+                <action name="Accountupdate">
+                        <result>UpdateAccount.jsp</result>  
+                </action>
+                <action name="contactus">
+                        <result>contactus.jsp</result>  
+                </action>
+
+
+
+
+
+
+
+
+		<action name="login" class="banking.actions.LoginAction">
+			<exception-mapping exception="banking.exceptions.UserNotFoundException" result="index.jsp" />
+			<result name="success">UserActions.jsp</result>
+			<result name="error">error.jsp</result>
+		</action>
+                <action name="createAccount" class="banking.actions.CreateAccountAction">
+                        <result name="success">AccountOperations.jsp</result>
+			<result name="error">error.jsp</result>
+			<result name="login">index.jsp</result>
+		</action>
+                <action name="transaction" class="banking.actions.WithdrawDepositAction">
+			<result name="success" type="redirect" >WithdrawDeposit</result>
+                        <result name="error">error.jsp</result>
+                        <result name="login">index.jsp</result>
+		</action>
+                <action name="accountLogin" class="banking.actions.AccountLoginAction">
+                        <result name="success">AccountOperations.jsp</result>
+                        <result name="error">error.jsp</result>
+                        <result name="index">index.jsp</result>
+		</action>  
+                <action name="EmployeeLogin" class="banking.actions.EmployeeLoginAction">   
+                        <result name="success">EmployeeHome.jsp</result>
+                        <result name="error">error.jsp</result>
+		</action>  
+                <action name="getallusers" class="banking.actions.GetAllUsersAction">
+                        <result name="success">AllUsers.jsp</result>     
+                        <result name="error">error.jsp</result>
+                </action>    
+                <action name="updatesavingsaccount" class="banking.actions.UpdateSavingsAccountAction">
+			<result name="success" type="redirectAction">getallaccounts</result>      
+                        <result name="error">error.jsp</result>
+		</action> 
+                <action name="getallaccounts" class="banking.actions.GetAllAccountsAction">
+                        <result name="success">AllAccounts.jsp</result>      
+                        <result name="error">error.jsp</result>
+                </action>
+                <action name="updatecheckingsaccount" class="banking.actions.UpdateCheckingsAccountAction">
+                        <result name="success">getallaccounts</result>       
+                        <result name="error">error.jsp</result>
+		</action>
+		<action name="updateUser" class="banking.actions.UpdateUserAction">
+			<result name="success" type="redirectAction">getallusers</result>
+			<result name="error">UpdateUser.jsp</result>
+		</action>
+                
+
+                <action name="createUser" class="banking.actions.CreateUserAction">
+                        <result name="success" type="redirect">NewUserPage</result>
+                        <result name="error">error.jsp</result>
+                </action>
+
+
+	</package>
+
+	<package name="jsons" extends="json-default" namespace="/">
+		<action name="deleteuser" class="banking.async.UpdateAndGetJson" method="execute">
+			<result type="json">
+			</result>
+		</action>
+		<action name="deletesavings" class="banking.async.UpdateAndGetJson" method="savings">
+                        <result type="json">               
+                        </result>
+		</action>
+                <action name="deletecheckings" class="banking.async.UpdateAndGetJson" method="checkings">
+                        <result type="json">               
+                        </result>
+		</action>
+                <action name="adduser" class="banking.async.UpdateAndGetJson" method="makeUser">
+                        <result type="json">               
+                        </result>
+		</action>
+                <action name="getdetails" class="banking.async.UpdateAndGetJson" method="getUser">         
+                        <result type="json">
+                        </result>
+		</action>
+                <action name="makeaccount" class="banking.async.UpdateAndGetJson" method="makeAccount"> 
+                        <result type="json">
+                        </result>
+                </action>
+                <action name="updaterate" class="banking.async.UpdateAndGetJson" method="updateSavings"> 
+                        <result type="json">
+                        </result>
+                </action>
+                <action name="updateod" class="banking.async.UpdateAndGetJson" method="updateCheckings"> 
+                        <result type="json">
+                        </result>
+                </action>
+                <action name="getbalance" class="banking.async.UpdateAndGetJson" method="fetchBalance"> 
+                        <result type="json">
+                        </result>
+                </action>
+                <action name="transferapi" class="banking.async.UpdateAndGetJson" method="transferapi"> 
+                        <result type="json">
+                        </result>
+                </action>
+                <action name="getbankinfo" class="banking.async.UpdateAndGetJson" method="fetchBankRecords"> 
+                        <result type="json">
+                        </result>
+                </action>
+	</package>
+
+
+
+</struts>
+
