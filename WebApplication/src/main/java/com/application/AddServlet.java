@@ -3,13 +3,22 @@ package com.application;
 import java.io.IOException;
 import java.io.PrintWriter;
 
-import javax.servlet.RequestDispatcher;
+import javax.servlet.ServletConfig;
+import javax.servlet.ServletContext;
 import javax.servlet.ServletException;
+import javax.servlet.annotation.WebInitParam;
+import javax.servlet.annotation.WebServlet;
+import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-import javax.servlet.http.HttpSession;
 
+@WebServlet(
+	    urlPatterns = "/add",
+	    initParams = {
+	        @WebInitParam(name = "name", value = "Kumar")
+	    }
+	)
 public class AddServlet extends HttpServlet{
 	
 	public void service(HttpServletRequest req, HttpServletResponse res) throws IOException, ServletException {
@@ -19,12 +28,27 @@ public class AddServlet extends HttpServlet{
 		
 		int k=i+j;
 		
-		HttpSession session=req.getSession();
-		session.setAttribute("k",k);
+//		HttpSession session=req.getSession();
+//		session.setAttribute("k",k);
+		Cookie coookie=new Cookie("k",k+"");
+		res.addCookie(coookie);
 		
+		
+//		ServletContext ctx=getServletContext();
+//		String name=ctx.getInitParameter("name");
+//		
+//		out.println(" Name " + name);
+//		
+		ServletConfig config=getServletConfig();
+		String str=config.getInitParameter("name");
+		
+		out.println(" Name " + str);
+		//out.println(" First Session ID: " + session.getId());
+
 		//res.sendRedirect("sq?k="+k);
-		res.sendRedirect("sq");
+		//res.sendRedirect("sq");
 		
+		//out.println("Check Session ID: " + session.getId());
 		
 		//k=k*k;
 //		out.println("Sum is :"+k);

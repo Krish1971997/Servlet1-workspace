@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Real-time Data with Java Servlet</title>
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            const dataContainer = document.getElementById("data-container");
+            const eventSource = new EventSource("realtime");
+            
+            eventSource.onmessage = function(event) {
+                const data = JSON.parse(event.data);
+                const timestamp = new Date(data.timestamp).toLocaleTimeString();
+                
+                const newData = document.createElement("div");
+                newData.innerText = `Time: ${timestamp}, Value: ${data.value.toFixed(2)}, Count: ${data.count}`;
+                
+                dataContainer.prepend(newData);
+                
+                // Keep only the latest 20 entries
+                while (dataContainer.children.length > 20) {
+                    dataContainer.removeChild(dataContainer.lastChild);
+                }
+            };
+            
+            eventSource.onerror = function() {
+                dataContainer.innerHTML += "<div>Connection lost. Reconnecting...</div>";
+            };
+        });
+    </script>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        h1 { color: #333; }
+        #data-container { 
+            margin-top: 20px;
+            border: 1px solid #ccc;
+            padding: 10px;
+            height: 400px;
+            overflow-y: auto;
+        }
+        #data-container div {
+            padding: 5px;
+            border-bottom: 1px solid #eee;
+        }
+    </style>
+</head>
+<body>
+    <h1>Real-time Data Stream</h1>
+    <div id="data-container"></div>
+</body>
+</html>
