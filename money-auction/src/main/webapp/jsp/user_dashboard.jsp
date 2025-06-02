@@ -7,7 +7,7 @@
 <body>
 <div class="container">
     <h2>User Dashboard</h2>
-    <a href="/user/viewUsers">View Participants</a> |
+    <a href="user/viewUsers">View Participants</a> |
     <a href="/draw/results">View Draw Results</a> |
     <a href="/logout">Logout</a>
 </div>

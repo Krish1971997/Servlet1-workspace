@@ -1,14 +1,5 @@
 package com.auction.servlet;
 
-import com.auction.model.User;
-import com.auction.util.DatabaseUtil;
-import com.auction.util.PasswordUtil;
-
-import javax.servlet.ServletException;
-import javax.servlet.annotation.WebServlet;
-import javax.servlet.http.HttpServlet;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -16,7 +7,16 @@ import java.sql.ResultSet;
 import java.util.ArrayList;
 import java.util.List;
 
-@WebServlet("/jsp/admin/*")
+import javax.servlet.ServletException;
+import javax.servlet.annotation.WebServlet;
+import javax.servlet.http.HttpServlet;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+
+import com.auction.model.User;
+import com.auction.util.DatabaseUtil;
+
+@WebServlet(urlPatterns ={"/jsp/admin/*","/jsp/user/*"})
 public class AdminServlet extends HttpServlet {
     protected void doPost(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
@@ -65,9 +65,15 @@ public class AdminServlet extends HttpServlet {
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
         String path = request.getPathInfo();
+        String path1=request.getRequestURI();
+        
         if ("/viewUsers".equals(path)) {
             try (Connection conn = DatabaseUtil.getConnection()) {
                 String sql = "SELECT * FROM users";
+                
+                if (path1.contains("/jsp/user/viewUsers")){
+                	sql+=" Where role = 'USER'";
+                }
                 PreparedStatement stmt = conn.prepareStatement(sql);
                 ResultSet rs = stmt.executeQuery();
 
@@ -97,7 +103,7 @@ public class AdminServlet extends HttpServlet {
                 stmt.setInt(1, userId);
                 stmt.executeUpdate();
 
-                response.sendRedirect("/admin/viewUsers");
+                response.sendRedirect("admin/viewUsers");
             } catch (Exception e) {
                 e.printStackTrace();
                 request.setAttribute("error", "Error deleting user");
