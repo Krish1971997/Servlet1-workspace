@@ -5,15 +5,4 @@
     <welcome-file-list>
         <welcome-file>/jsp/login.jsp</welcome-file>
     </welcome-file-list>
-
-    <filter>
-        <filter-name>AuthFilter</filter-name>
-        <filter-class>com.auction.servlet.AuthFilter</filter-class>
-    </filter>
-    <filter-mapping>
-        <filter-name>AuthFilter</filter-name>
-        <url-pattern>/admin/*</url-pattern>
-        <url-pattern>/user/*</url-pattern>
-        <url-pattern>/draw/*</url-pattern>
-    </filter-mapping>
 </web-app>

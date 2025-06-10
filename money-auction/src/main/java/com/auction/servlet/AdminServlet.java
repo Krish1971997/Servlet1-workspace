@@ -37,7 +37,7 @@ public class AdminServlet extends HttpServlet {
                 stmt.executeUpdate();
 
                 request.setAttribute("message", "User added successfully");
-                request.getRequestDispatcher("/jsp/add_user.jsp").forward(request, response);
+                request.getRequestDispatcher("/jsp/admin_dashboard.jsp").forward(request, response);
             } catch (Exception e) {
                 e.printStackTrace();
                 request.setAttribute("error", "Error adding user");

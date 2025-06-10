@@ -1,6 +1,6 @@
 function confirmDelete(userId) {
     if (confirm("Are you sure you want to delete this user?")) {
-        window.location.href = "/admin/delete?userId=" + userId;
+        window.location.href = "/jsp/admin/delete?userId=" + userId;
     }
 }
 

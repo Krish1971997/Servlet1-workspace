@@ -12,7 +12,7 @@
 		<% } %>
 		<form action="login" method="post">
 			<div class="form-group">
-				<label>Email:</label> <input type="email" name="email" required>
+				<label>Email:</label> <input type="email" name="email" required><br>
 			</div>
 			<div class="form-group">
 				<label>Password:</label> <input type="password" name="password"
