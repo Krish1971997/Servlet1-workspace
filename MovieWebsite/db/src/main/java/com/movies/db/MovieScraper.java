@@ -15,7 +15,7 @@ public class MovieScraper {
 	private static final String DB_URL = "jdbc:sqlserver://localhost:1433;databaseName=Krishna_Testing;trustServerCertificate=true";
 	private static final String DB_USER = "sa"; // Replace with your DB username
 	private static final String DB_PASSWORD = "15848"; // Replace with your DB password
-	private static final String BASE_URL = "https://9moviesda.com";
+	private static final String BASE_URL = "https://moviesda12.com/";
 	private static final String[] SUBCATEGORIES = { "/tamil-2025-movies/", "/tamil-2024-movies/", "/tamil-2023-movies/",
 			"/tamil-2022-movies/", "/tamil-2021-movies/", "/tamil-2020-movies/", "/tamil-2019-movies/",
 			"/tamil-2018-movies/", "/tamil-2017-movies/", "/tamil-2016-movies/", "/tamil-2015-movies/",
@@ -91,6 +91,13 @@ public class MovieScraper {
 			stmt.execute();
 			System.out.println("Table 'Movies' created or already exists.");
 		}
+		
+		String query="Truncate table Movies";
+		try (PreparedStatement stmt = conn.prepareStatement(query)) {
+			stmt.execute();
+			System.out.println("Truncated Table 'Movies'");
+		}
+		
 	}
 
 	private static void processSubcategory(Connection conn, String subcategory) throws Exception {
