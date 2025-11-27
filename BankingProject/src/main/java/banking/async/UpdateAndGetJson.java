@@ -1,23 +1,32 @@
 package banking.async;
 
-import banking.models.User;
-import banking.services.TransactionServices;
-import banking.models.Account;
-import banking.models.CheckingsAccount;
-import banking.models.SavingsAccount;
-import banking.interfaces.AccountManager;
-import banking.interfaces.UserManager;
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.PrintWriter;
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
+import java.util.concurrent.atomic.AtomicLong;
 
-import java.util.concurrent.atomic.*;
 import javax.servlet.*;
 import javax.servlet.ServletContext;
 import javax.servlet.http.*;
-import java.util.*;
-import org.json.*;
-import java.io.*;
+
+import org.apache.struts2.ServletActionContext;
+import org.json.JSONArray;
+import org.json.JSONObject;
 
 import com.opensymphony.xwork2.ActionSupport;
-import org.apache.struts2.ServletActionContext;
+
+import banking.interfaces.AccountManager;
+import banking.interfaces.UserManager;
+import banking.models.Account;
+import banking.models.CheckingsAccount;
+import banking.models.SavingsAccount;
+import banking.models.User;
+import banking.services.TransactionServices;
 
 public class UpdateAndGetJson extends ActionSupport {
 	private static AccountManager AccountMgr = null;

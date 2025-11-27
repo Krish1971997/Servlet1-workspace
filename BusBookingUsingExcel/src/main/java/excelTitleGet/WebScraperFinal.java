@@ -82,7 +82,6 @@ public class WebScraperFinal {
 //					String lastUpdated = articleDate != null ? articleDate.text().replace("Last Updated: ", "") : "";
 //
 //					addUniqueEntries(title, href, lastUpdated);
-//					System.out.println("Fetch From Website");
 //				}
 //			} catch (IOException e) {
 //				System.out.println("Error fetching data from URL: " + url);
@@ -92,66 +91,61 @@ public class WebScraperFinal {
 //	}
 	
 	private static void fetchResultsFromWebsite(int lastPageNumber, String suffix) {
-	    String baseUrl = "https://www.geeksforgeeks.org/tag/zoho" + suffix;
+	    String baseUrl = "https://www.geeksforgeeks.org/tag/zoho";
 	    if (suffix.contains("popular")) {
-	        baseUrl = "https://www.geeksforgeeks.org/tag/zoho/";
+	        baseUrl = "https://www.geeksforgeeks.org/tag/zoho"; // No trailing slash
+	    } else {
+	        baseUrl += suffix; // Append suffix for recent (e.g., /?type=recent)
 	    }
 
 	    for (int i = 1; i <= lastPageNumber; i++) {
 	        String url = (i == 1) ? baseUrl : baseUrl + "/page/" + i;
-	        try {
-	            System.out.println("Fetching page: " + url);
-	            Document doc = Jsoup.connect(url)
-	                    .userAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
-	                    .timeout(10000)
-	                    .get();
-	            
-	            // Try multiple selectors to find articles
-	            Elements articleContainers = findArticleContainers(doc);
-	            
-	            System.out.println("Found " + articleContainers.size() + " articles on page " + i);
-	            
-	            for (Element container : articleContainers) {
-	                ArticleData articleData = extractArticleData(container);
-	                if (articleData.isValid()) {
-	                    addUniqueEntries(articleData.title, articleData.href, articleData.lastUpdated);
+	        int maxRetries = 3;
+	        int retryCount = 0;
+	        boolean success = false;
+
+	        while (retryCount < maxRetries && !success) {
+	            try {
+	                // Set a timeout of 10 seconds for the connection
+	                Document doc = Jsoup.connect(url).timeout(10000).get();
+	                Elements articleContainers = doc.select(".article_heading_container");
+
+	                for (Element container : articleContainers) {
+	                    Element articleHeading = container.selectFirst(".article_subheading a");
+	                    Element articleDate = container.selectFirst(".article_date");
+
+	                    String title = articleHeading != null ? articleHeading.text() : "";
+	                    String href = articleHeading != null ? articleHeading.attr("href") : "";
+	                    String lastUpdated = articleDate != null ? articleDate.text().replace("Last Updated: ", "") : "";
+
+	                    addUniqueEntries(title, href, lastUpdated);
+	                }
+	                success = true; // Mark as successful if no exception occurs
+	            } catch (IOException e) {
+	                retryCount++;
+	                System.out.println("Error fetching data from URL: " + url + " (Attempt " + retryCount + "/" + maxRetries + ")");
+	                e.printStackTrace();
+	                if (retryCount < maxRetries) {
+	                    try {
+	                        Thread.sleep(2000); // Wait 2 seconds before retrying
+	                    } catch (InterruptedException ie) {
+	                        Thread.currentThread().interrupt(); // Restore interrupted status
+	                    }
+	                } else {
+	                    System.out.println("Failed to fetch URL after " + maxRetries + " attempts: " + url);
 	                }
 	            }
-	            
-	            // Add delay to avoid being blocked
-	            Thread.sleep(1000);
-	            
-	        } catch (IOException e) {
-	            System.out.println("Error fetching data from URL: " + url);
-	            e.printStackTrace();
+	        }
+
+	        // Add a small delay between page requests to avoid overwhelming the server
+	        try {
+	            Thread.sleep(1000); // 1-second delay between requests
 	        } catch (InterruptedException e) {
-	            System.out.println("Thread interrupted");
 	            Thread.currentThread().interrupt();
 	        }
 	    }
 	}
-	
-	private static Elements findArticleContainers(Document doc) {
-	    // Try multiple selectors in order of preference
-	    String[] containerSelectors = {
-	        ".article_heading_container",  // Original selector
-	        "article",                     // HTML5 article tags
-	        ".article-container",          // Common alternative
-	        ".post-container",            // Another common pattern
-	        "div[class*='article']",      // Any div with 'article' in class name
-	        "div[class*='post']",         // Any div with 'post' in class name
-	        ".content-wrapper",           // Generic content wrapper
-	        "h2 a[href*='/'], h3 a[href*='/']" // Article titles as links
-	    };
-	    
-	    for (String selector : containerSelectors) {
-	        Elements elements = doc.select(selector);
-	        if (elements.size() > 0) {
-	            System.out.println("Using selector: " + selector + " (found " + elements.size() + " elements)");
-	            return elements;
-	        }
-	    }
-	}
+
 	private static void addUniqueEntries(String title, String href, String lastUpdated) {
 		UniqueData unique = new UniqueData(title, lastUpdated, href);
 		uniqueEntries.put(unique.hashCode(), unique); // Uses hashcode as key for uniqueness
@@ -178,48 +172,33 @@ public class WebScraperFinal {
 	}
 
 	private static int getLastPageNumber() {
-//		String url = "https://www.geeksforgeeks.org/tag/zoho/";
-//		try {
-//			Document doc = Jsoup.connect(url).get();
-//			Element paginationEnd = doc.selectFirst(".pagination_end");
-//			String lastPageUrl = paginationEnd.attr("href");
-//			return extractPageNumber(lastPageUrl);
-//	 	} catch (IOException e) {
-//			e.printStackTrace();
-//			return 0;
-//		}
+	    String url = "https://www.geeksforgeeks.org/tag/zoho/";
+	    try {
+	        Document doc = Jsoup.connect(url).get();
+	        // Select all pagination links
+	        Elements paginationLinks = doc.select(".Pagination_singlePage_head__kktjf[href*=/page/]");
+	        int maxPageNumber = 1; // Default to 1 if no pages are found
 
-		String url = "https://www.geeksforgeeks.org/tag/zoho/";
-		try {
-			Document doc = Jsoup.connect(url).get();
-			Elements pageLinks = doc.select("a[href*='/page/']");
-			int maxPage = 0;
-
-			for (Element link : pageLinks) {
-				String href = link.attr("href");
-				try {
-					// Extract page number from URLs like "/tag/zoho/page/16/"
-					String[] parts = href.split("/");
-					for (int i = 0; i < parts.length; i++) {
-						if ("page".equals(parts[i]) && i + 1 < parts.length) {
-							int pageNum = Integer.parseInt(parts[i + 1]);
-							maxPage = Math.max(maxPage, pageNum);
-							break;
-						}
-					}
-				} catch (NumberFormatException e) {
-					// Skip invalid page numbers
-					continue;
-				}
-			}
-			System.out.println("Found maximum page number: " + maxPage);
-			return maxPage > 0 ? maxPage : 1; // Return at least 1 if no pagination found
-
-		} catch (IOException e) {
-			System.out.println("Error fetching pagination info from: " + url);
-			e.printStackTrace();
-			return 1; // Return 1 as fallback
-		}
+	        for (Element link : paginationLinks) {
+	            String href = link.attr("href");
+	            // Extract page number from href (e.g., /tag/zoho/page/16/?type=recent)
+	            String[] parts = href.split("/");
+	            String pageNumberString = parts[parts.length - 2]; // Get the page number part
+	            try {
+	                int pageNumber = Integer.parseInt(pageNumberString);
+	                if (pageNumber > maxPageNumber) {
+	                    maxPageNumber = pageNumber;
+	                }
+	            } catch (NumberFormatException e) {
+	                // Skip if page number is not a valid integer
+	                continue;
+	            }
+	        }
+	        return maxPageNumber;
+	    } catch (IOException e) {
+	        e.printStackTrace();
+	        return 0;
+	    }
 	}
 
 	private static int extractPageNumber(String url) {
@@ -235,7 +214,7 @@ public class WebScraperFinal {
 		for (UniqueData unique : uniqueEntries.values()) {
 			Jdbc_Connection.insertOperation(unique.title, unique.lastUpdated, unique.href);
 		}
-
+		
 		Jdbc_Connection.sent_email();
 
 		System.out.println("Insert DB End time: " + (System.currentTimeMillis() - dbStartTime) / 1000 + " sec");

@@ -1,11 +1,10 @@
 package banking.services;
 
-import banking.models.Account;
-import banking.models.CheckingsAccount;
-import banking.models.SavingsAccount;
-import banking.exceptions.InsufficientFundsException;
-import banking.dao.AccountDAO;
 import java.sql.SQLException;
+
+import banking.dao.AccountDAO;
+import banking.exceptions.InsufficientFundsException;
+import banking.models.Account;
 
 public class AccountServices<T extends Account> {
 	private AccountDAO accountDAO = new AccountDAO();
