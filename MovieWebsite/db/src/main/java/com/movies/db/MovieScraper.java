@@ -1,10 +1,19 @@
 package com.movies.db;
 
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Statement;
 
+import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.ss.usermodel.Sheet;
+import org.apache.poi.ss.usermodel.Workbook;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.jsoup.HttpStatusException;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
@@ -16,23 +25,24 @@ public class MovieScraper {
 	private static final String DB_USER = "sa"; // Replace with your DB username
 	private static final String DB_PASSWORD = "15848"; // Replace with your DB password
 	private static final String BASE_URL = "https://moviesda16.com/";
-	private static final String[] SUBCATEGORIES = { "/tamil-2026-movies/","/tamil-2025-movies/", "/tamil-2024-movies/", "/tamil-2023-movies/",
-			"/tamil-2022-movies/", "/tamil-2021-movies/", "/tamil-2020-movies/", "/tamil-2019-movies/",
-			"/tamil-2018-movies/", "/tamil-2017-movies/", "/tamil-2016-movies/", "/tamil-2015-movies/",
-			"/tamil-2012-movies/", "/tamil-hd-movies-download/", "/thala-ajith-movies-collection-download/",
-			"/mgr-movies-collection-download/", "/madhavan-movies-collection-download/",
-			"/arjun-movies-collection-download/", "/jiiva-movies-collection-download/",
-			"/jayam-ravi-movies-collection-download/", "/vishal-movies-collection-download/",
-			"/silambarasan-movies-collection-download/", "/vijay-sethupathi-movies-collection-download/",
-			"/dhanush-movies-collection-download/", "/suriya-movies-collections-download/",
-			"/vijayakanth-movie-collections-download/", "/rajinikanth-movie-collections-download/",
-			"/chiyaan-vikram-movie-collections-download/", "/kamal-haasan-movie-collections-download/",
-			"/bhagyaraj-movie-collections-download/", "/actor-sasikumar-movies-collections/",
-			"/actor-nakul-movies-collections/", "/actor-siddharth-movies-collection/",
-			"/actor-cheran-movies-collection/", "/actor-vimal-movies-collection/", "/actor-vijay-movies-collection/",
-			"/actor-ramarajan-movies-collection/", "/actor-simbu-movies-collection/",
-			"/actor-sathiyaraj-movies-collection/", "/actor-appukutty-movies-collection/",
-			"/actor-surya-movies-collection/", "/actor-murali-movies-collection/", "/actor-mohan-movies-collection/",
+	private static final String[] SUBCATEGORIES = { "/tamil-2026-movies/", "/tamil-2025-movies/", "/tamil-2024-movies/",
+			"/tamil-2023-movies/", "/tamil-2022-movies/", "/tamil-2021-movies/", "/tamil-2020-movies/",
+			"/tamil-2019-movies/", "/tamil-2018-movies/", "/tamil-2017-movies/", "/tamil-2016-movies/",
+			"/tamil-2015-movies/", "/tamil-2012-movies/", "/tamil-hd-movies-download/",
+			"/thala-ajith-movies-collection-download/", "/mgr-movies-collection-download/",
+			"/madhavan-movies-collection-download/", "/arjun-movies-collection-download/",
+			"/jiiva-movies-collection-download/", "/jayam-ravi-movies-collection-download/",
+			"/vishal-movies-collection-download/", "/silambarasan-movies-collection-download/",
+			"/vijay-sethupathi-movies-collection-download/", "/dhanush-movies-collection-download/",
+			"/suriya-movies-collections-download/", "/vijayakanth-movie-collections-download/",
+			"/rajinikanth-movie-collections-download/", "/chiyaan-vikram-movie-collections-download/",
+			"/kamal-haasan-movie-collections-download/", "/bhagyaraj-movie-collections-download/",
+			"/actor-sasikumar-movies-collections/", "/actor-nakul-movies-collections/",
+			"/actor-siddharth-movies-collection/", "/actor-cheran-movies-collection/",
+			"/actor-vimal-movies-collection/", "/actor-vijay-movies-collection/", "/actor-ramarajan-movies-collection/",
+			"/actor-simbu-movies-collection/", "/actor-sathiyaraj-movies-collection/",
+			"/actor-appukutty-movies-collection/", "/actor-surya-movies-collection/",
+			"/actor-murali-movies-collection/", "/actor-mohan-movies-collection/",
 			"/actor-sarathkumar-movies-collection/", "/actor-bhagyaraj-movies-collection/",
 			"/actor-mgr-movies-collection/", "/actor-vishal-movies-collection/",
 			"/actor-vijayakanth-movies-collection/", "/actor-sivakarthikeyan-movies-collection/",
@@ -53,40 +63,50 @@ public class MovieScraper {
 	private static final int MAX_PAGES_WITHOUT_PAGINATION = 10; // Max pages to try if no pagination found
 
 	public static void main(String[] args) {
+		Connection conn = null;
 		try {
 			// Establish database connection
-			Connection conn = DriverManager.getConnection(DB_URL, DB_USER, DB_PASSWORD);
+			conn = DriverManager.getConnection(DB_URL, DB_USER, DB_PASSWORD);
 			System.out.println("Connected to database successfully.");
 
 			// Create table if it doesn't exist
-			createTable(conn);
+			//	createTable(conn);
 
 			// Process each subcategory
-			for (String subcategory : SUBCATEGORIES) {
-				try {
-					processSubcategory(conn, subcategory);
-				} catch (Exception e) {
-					System.err.println("Failed to process subcategory: " + subcategory + ", Error: " + e.getMessage());
-					e.printStackTrace();
-				}
-			}
+//			for (String subcategory : SUBCATEGORIES) {
+//				try {
+//					processSubcategory(conn, subcategory);
+//				} catch (Exception e) {
+//					System.err.println("Failed to process subcategory: " + subcategory + ", Error: " + e.getMessage());
+//					e.printStackTrace();
+//				}
+//			}
 
-			// Close connection
-			conn.close();
-			System.out.println("Database connection closed.");
 		} catch (SQLException e) {
 			System.err.println("Database error: " + e.getMessage());
 			e.printStackTrace();
 		} catch (Exception e) {
 			System.err.println("Error: " + e.getMessage());
 			e.printStackTrace();
+		} finally {
+
+			// Close connection
+			try {
+				moviesExtract(conn);
+				conn.close();
+			} catch (SQLException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+			System.out.println("Database connection closed.");
+
 		}
 	}
 
 	private static void createTable(Connection conn) throws SQLException {
 		String createTableSQL = "IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'Movies') "
 				+ "CREATE TABLE Movies (" + "id INT IDENTITY(1,1) PRIMARY KEY, " + "name NVARCHAR(255), "
-				+ "sublink NVARCHAR(255), " + "category NVARCHAR(100), " + "link NVARCHAR(255), "  
+				+ "sublink NVARCHAR(255), " + "category NVARCHAR(100), " + "link NVARCHAR(255), "
 				+ "pageurl varchar(1000) )";
 		try (PreparedStatement stmt = conn.prepareStatement(createTableSQL)) {
 			stmt.execute();
@@ -210,4 +230,45 @@ public class MovieScraper {
 		}
 		return false;
 	}
+
+	private static void moviesExtract(Connection conn) {
+		Workbook workbook = new XSSFWorkbook();
+		Sheet sheet = workbook.createSheet("Movies DB");
+		String sql = "Select *From Movies";
+		String filePath = "C:\\Users\\Admin\\OneDrive\\Music\\Movies DB\\Movies Sheet\\Movies.xlsx";
+		Statement stmt;
+		int rowNum = 0;
+		try {
+			stmt = conn.createStatement();
+			ResultSet rs = stmt.executeQuery(sql);
+			while (rs.next()) {
+				Row row = sheet.createRow(rowNum++);
+				row.createCell(0).setCellValue(rs.getInt(1));
+				row.createCell(1).setCellValue(rs.getString(2));
+				row.createCell(2).setCellValue(rs.getString(3));
+				row.createCell(3).setCellValue(rs.getString(4));
+				row.createCell(4).setCellValue(rs.getString(5));
+				row.createCell(5).setCellValue(rs.getString(6));
+
+			}
+			File file = new File(filePath);
+			if (file.exists()) {
+				System.out.println("File Deleted...");
+				file.delete();
+			}
+			file.getParentFile().mkdirs();
+
+			try (FileOutputStream outputStream = new FileOutputStream(file)) {
+				workbook.write(outputStream);
+				workbook.close();
+				System.out.println("Data written to Excel file successfully.");
+				System.out.println("Total Rows : " + rowNum);
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+		} catch (SQLException e) {
+			e.printStackTrace();
+		}
+	}
+
 }
