@@ -1,22 +1,10 @@
 package com.movies.db;
 
-import java.io.BufferedReader;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.InputStreamReader;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
-import java.util.Arrays;
-import java.util.HashSet;
-import java.util.Objects;
-import java.util.Set;
 
-import org.apache.poi.ss.usermodel.Row;
-import org.apache.poi.ss.usermodel.Sheet;
-import org.apache.poi.ss.usermodel.Workbook;
-import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.jsoup.HttpStatusException;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
@@ -27,8 +15,8 @@ public class MovieScraper {
 	private static final String DB_URL = "jdbc:sqlserver://localhost:1433;databaseName=Krishna_Testing;trustServerCertificate=true";
 	private static final String DB_USER = "sa"; // Replace with your DB username
 	private static final String DB_PASSWORD = "15848"; // Replace with your DB password
-	private static final String BASE_URL = "https://moviesda14.net/";
-	private static final String[] SUBCATEGORIES = { "/tamil-2025-movies/", "/tamil-2024-movies/", "/tamil-2023-movies/",
+	private static final String BASE_URL = "https://moviesda16.com/";
+	private static final String[] SUBCATEGORIES = { "/tamil-2026-movies/","/tamil-2025-movies/", "/tamil-2024-movies/", "/tamil-2023-movies/",
 			"/tamil-2022-movies/", "/tamil-2021-movies/", "/tamil-2020-movies/", "/tamil-2019-movies/",
 			"/tamil-2018-movies/", "/tamil-2017-movies/", "/tamil-2016-movies/", "/tamil-2015-movies/",
 			"/tamil-2012-movies/", "/tamil-hd-movies-download/", "/thala-ajith-movies-collection-download/",
@@ -58,47 +46,37 @@ public class MovieScraper {
 			"/actor-karthik-movies-collection/", "/actor-rajkiran-movies-collection/",
 			"/actor-karthi-movies-collection/", "/actor-sivaji-ganesan-movies-collection/",
 			"/actor-kunal-movies-collection/" };
+
 	private static final int TIMEOUT = 20000; // Increased to 20 seconds timeout
 	private static final int MAX_RETRIES = 3; // Number of retries for failed requests
 	private static final int DELAY_MS = 2000; // 2 seconds delay between requests
 	private static final int MAX_PAGES_WITHOUT_PAGINATION = 10; // Max pages to try if no pagination found
 
-	private static final Workbook workbook = new XSSFWorkbook();
-	private static final Sheet sheet = workbook.createSheet("Movies");
-	private static final Set<MovieData> uniqueMovies = new HashSet<>();
-	private static int rowNum = 0;
-
 	public static void main(String[] args) {
 		try {
 			// Establish database connection
-			 Connection conn = DriverManager.getConnection(DB_URL, DB_USER, DB_PASSWORD);
-			 System.out.println("Connected to database successfully.");
+			Connection conn = DriverManager.getConnection(DB_URL, DB_USER, DB_PASSWORD);
+			System.out.println("Connected to database successfully.");
+
 			// Create table if it doesn't exist
-			 createTable(conn);
+			createTable(conn);
+
 			// Process each subcategory
 			for (String subcategory : SUBCATEGORIES) {
 				try {
-					processSubcategory(subcategory);
+					processSubcategory(conn, subcategory);
 				} catch (Exception e) {
 					System.err.println("Failed to process subcategory: " + subcategory + ", Error: " + e.getMessage());
 					e.printStackTrace();
 				}
 			}
-			// Export to Excel
-			initializeExcelSheet();
-			createExcel();
-			writeExcelToFile();
-			// Insert to DB
-			 insertDataToDB(conn);
-			// Close connection
-			 conn.close();
-			System.out.println("Database connection closed.");
-			moveExcel();
-			System.out.println("Excel Moved Drive Folder");
 
-//		} catch (SQLException e) {
-//			System.err.println("Database error: " + e.getMessage());
-//			e.printStackTrace();
+			// Close connection
+			conn.close();
+			System.out.println("Database connection closed.");
+		} catch (SQLException e) {
+			System.err.println("Database error: " + e.getMessage());
+			e.printStackTrace();
 		} catch (Exception e) {
 			System.err.println("Error: " + e.getMessage());
 			e.printStackTrace();
@@ -108,27 +86,31 @@ public class MovieScraper {
 	private static void createTable(Connection conn) throws SQLException {
 		String createTableSQL = "IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'Movies') "
 				+ "CREATE TABLE Movies (" + "id INT IDENTITY(1,1) PRIMARY KEY, " + "name NVARCHAR(255), "
-				+ "sublink NVARCHAR(255), " + "category NVARCHAR(100), " + "link NVARCHAR(255)" + ")";
+				+ "sublink NVARCHAR(255), " + "category NVARCHAR(100), " + "link NVARCHAR(255), "  
+				+ "pageurl varchar(1000) )";
 		try (PreparedStatement stmt = conn.prepareStatement(createTableSQL)) {
 			stmt.execute();
 			System.out.println("Table 'Movies' created or already exists.");
 		}
+
 		String query = "Truncate table Movies";
 		try (PreparedStatement stmt = conn.prepareStatement(query)) {
 			stmt.execute();
 			System.out.println("Truncated Table 'Movies'");
 		}
+
 	}
 
-	private static void processSubcategory(String subcategory) throws Exception {
+	private static void processSubcategory(Connection conn, String subcategory) throws Exception {
 		String baseSubcategoryUrl = BASE_URL + subcategory;
 		int lastPage = getLastPageNumber(baseSubcategoryUrl);
 		System.out.println("Processing subcategory: " + subcategory + ", Total pages: " + lastPage);
+
 		for (int page = 1; page <= lastPage; page++) {
 			String pageUrl = baseSubcategoryUrl + (page == 1 ? "" : "?page=" + page);
 			System.out.println("Scraping page: " + pageUrl);
 			try {
-				if (!scrapePage(pageUrl, subcategory)) {
+				if (!scrapePage(conn, pageUrl, subcategory)) {
 					System.err.println(
 							"Page not found or empty: " + pageUrl + ". Stopping pagination for this subcategory.");
 					break; // Stop if page is not found or empty
@@ -179,7 +161,7 @@ public class MovieScraper {
 		return MAX_PAGES_WITHOUT_PAGINATION; // Fallback
 	}
 
-	private static boolean scrapePage(String pageUrl, String subcategory) throws Exception {
+	private static boolean scrapePage(Connection conn, String pageUrl, String subcategory) throws Exception {
 		int retries = 0;
 		while (retries < MAX_RETRIES) {
 			try {
@@ -187,21 +169,29 @@ public class MovieScraper {
 						"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36")
 						.get();
 				Elements movieDivs = doc.select("div.f a");
+
 				if (movieDivs.isEmpty()) {
 					System.err.println("No movie data found on page: " + pageUrl);
 					return false; // Indicate page is empty or not found
 				}
-				String category = subcategory.replace("/", ""); // Remove slashes for cleaner category name
-				for (Element movieLink : movieDivs) {
-					String name = movieLink.text().trim();
-					String sublink = movieLink.attr("href");
-					String fullLink = BASE_URL + sublink;
-					MovieData movie = new MovieData(name, sublink, category, fullLink);
-					if (uniqueMovies.add(movie)) {
-						System.out
-								.println("Added unique: " + name + ", " + sublink + ", " + category + ", " + fullLink);
-					} else {
-						System.out.println("Duplicate skipped: " + name);
+
+				String insertSQL = "INSERT INTO Movies (name, sublink, category, link, pageurl) VALUES (?, ?, ?, ?, ?)";
+				try (PreparedStatement pstmt = conn.prepareStatement(insertSQL)) {
+					for (Element movieLink : movieDivs) {
+						String name = movieLink.text().trim();
+						String sublink = movieLink.attr("href");
+						String fullLink = BASE_URL + sublink;
+
+						// Set parameters
+						pstmt.setString(1, name);
+						pstmt.setString(2, sublink);
+						pstmt.setString(3, subcategory.replace("/", "")); // Remove slashes for cleaner category name
+						pstmt.setString(4, fullLink);
+						pstmt.setString(5, pageUrl);
+
+						// Execute insert
+						pstmt.executeUpdate();
+						System.out.println("Inserted: " + name + ", " + sublink + ", " + subcategory + ", " + fullLink);
 					}
 				}
 				return true; // Success, page processed
@@ -219,112 +209,5 @@ public class MovieScraper {
 			}
 		}
 		return false;
-	}
-
-	private static void initializeExcelSheet() {
-		Row headerRow = sheet.createRow(rowNum++);
-		headerRow.createCell(0).setCellValue("Name");
-		headerRow.createCell(1).setCellValue("Sublink");
-		headerRow.createCell(2).setCellValue("Category");
-		headerRow.createCell(3).setCellValue("Link");
-	}
-
-	private static void createExcel() {
-		for (MovieData movie : uniqueMovies) {
-			Row row = sheet.createRow(rowNum++);
-			row.createCell(0).setCellValue(movie.name);
-			row.createCell(1).setCellValue(movie.sublink);
-			row.createCell(2).setCellValue(movie.category);
-			row.createCell(3).setCellValue(movie.link);
-		}
-	}
-
-	private static void writeExcelToFile() throws IOException {
-		try (FileOutputStream outputStream = new FileOutputStream("Movies.xlsx")) {
-			workbook.write(outputStream);
-			workbook.close();
-			System.out.println("Data written to Excel file successfully.");
-		}
-	}
-
-	private static void insertDataToDB(Connection conn) throws SQLException {
-		String insertSQL = "INSERT INTO Movies (name, sublink, category, link) VALUES (?, ?, ?, ?)";
-		try (PreparedStatement pstmt = conn.prepareStatement(insertSQL)) {
-			for (MovieData movie : uniqueMovies) {
-				pstmt.setString(1, movie.name);
-				pstmt.setString(2, movie.sublink);
-				pstmt.setString(3, movie.category);
-				pstmt.setString(4, movie.link);
-				pstmt.addBatch();
-			}
-			pstmt.executeBatch();
-			System.out.println("Inserted " + uniqueMovies.size() + " unique movies to DB.");
-		}
-	}
-
-	public static void moveExcel() {
-		String batFilePath = "C:\\Users\\Admin\\Music\\Bat files\\move_excel.bat"; // Or full path like
-																					// "C:\\path\\to\\move_excel.bat"
-		ProcessBuilder pb = new ProcessBuilder(Arrays.asList(batFilePath));
-		try {
-			// Start the process
-			Process process = pb.start();
-
-			// Read output (stdout) from the batch file
-			BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
-			String line;
-			while ((line = reader.readLine()) != null) {
-				System.out.println(line); // Prints batch echoes like "Moving Excel file..." and success/error messages
-			}
-
-			// Read errors (stderr) if any (e.g., command not found)
-			BufferedReader errorReader = new BufferedReader(new InputStreamReader(process.getErrorStream()));
-			while ((line = errorReader.readLine()) != null) {
-				System.err.println("Error: " + line);
-			}
-
-			// Wait for the process to complete and check exit code
-			int exitCode = process.waitFor();
-			if (exitCode == 0) {
-				System.out.println("Batch file executed successfully! (File move completed)");
-			} else {
-				System.out.println("Batch file failed with exit code: " + exitCode);
-			}
-
-		} catch (IOException | InterruptedException e) {
-			System.err.println("Exception occurred while running batch file: " + e.getMessage());
-			e.printStackTrace();
-
-		}
-	}
-
-	static class MovieData {
-		String name;
-		String sublink;
-		String category;
-		String link;
-
-		public MovieData(String name, String sublink, String category, String link) {
-			this.name = name;
-			this.sublink = sublink;
-			this.category = category;
-			this.link = link;
-		}
-
-		@Override
-		public int hashCode() {
-			return Objects.hash(name, sublink, category, link);
-		}
-
-		@Override
-		public boolean equals(Object obj) {
-			if (this == obj)
-				return true;
-			if (obj == null || getClass() != obj.getClass())
-				return false;
-			MovieData that = (MovieData) obj;
-			return Objects.equals(name, that.name) && Objects.equals(sublink, that.sublink)
-					&& Objects.equals(category, that.category) && Objects.equals(link, that.link);
-		}
 	}
 }
