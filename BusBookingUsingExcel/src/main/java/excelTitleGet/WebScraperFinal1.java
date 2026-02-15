@@ -46,7 +46,7 @@ public class WebScraperFinal1 {
 
 		surl = "https://www.geeksforgeeks.org/tag/zoho/?type=popular";
 
-		for (int i = 1; i < 14; i++) {
+		for (int i = 1; i < 17; i++) {
 			if (i != 1)
 				surl = "https://www.geeksforgeeks.org/tag/zoho/page/" + i + "/?type=popular";
 			String url = String.valueOf(surl);
