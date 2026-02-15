@@ -9,7 +9,13 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.Scanner;
 
+import org.apache.poi.ss.usermodel.Cell;
+import org.apache.poi.ss.usermodel.CellStyle;
+import org.apache.poi.ss.usermodel.FillPatternType;
+import org.apache.poi.ss.usermodel.Font;
+import org.apache.poi.ss.usermodel.IndexedColors;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
@@ -24,7 +30,7 @@ public class MovieScraper {
 	private static final String DB_URL = "jdbc:sqlserver://localhost:1433;databaseName=Krishna_Testing;trustServerCertificate=true";
 	private static final String DB_USER = "sa"; // Replace with your DB username
 	private static final String DB_PASSWORD = "15848"; // Replace with your DB password
-	private static final String BASE_URL = "https://moviesda16.com/";
+	private static String BASE_URL = null; // "https://moviesda16.com/";
 	private static final String[] SUBCATEGORIES = { "/tamil-2026-movies/", "/tamil-2025-movies/", "/tamil-2024-movies/",
 			"/tamil-2023-movies/", "/tamil-2022-movies/", "/tamil-2021-movies/", "/tamil-2020-movies/",
 			"/tamil-2019-movies/", "/tamil-2018-movies/", "/tamil-2017-movies/", "/tamil-2016-movies/",
@@ -61,16 +67,19 @@ public class MovieScraper {
 	private static final int MAX_RETRIES = 3; // Number of retries for failed requests
 	private static final int DELAY_MS = 2000; // 2 seconds delay between requests
 	private static final int MAX_PAGES_WITHOUT_PAGINATION = 10; // Max pages to try if no pagination found
+	public static Scanner sc = new Scanner(System.in);
 
 	public static void main(String[] args) {
 		Connection conn = null;
+		System.out.println("Enter the Base URL:");
+		BASE_URL = sc.next();
 		try {
 			// Establish database connection
 			conn = DriverManager.getConnection(DB_URL, DB_USER, DB_PASSWORD);
 			System.out.println("Connected to database successfully.");
 
 			// Create table if it doesn't exist
-			//	createTable(conn);
+			// createTable(conn);
 
 			// Process each subcategory
 //			for (String subcategory : SUBCATEGORIES) {
@@ -235,9 +244,36 @@ public class MovieScraper {
 		Workbook workbook = new XSSFWorkbook();
 		Sheet sheet = workbook.createSheet("Movies DB");
 		String sql = "Select *From Movies";
-		String filePath = "C:\\Users\\Admin\\OneDrive\\Music\\Movies DB\\Movies Sheet\\Movies.xlsx";
+		String msPath = "C:\\Users\\Admin\\OneDrive\\Music\\Movies DB\\Movies Sheet\\Movies.xlsx";
+		String zohoPath = "Z:\\My Folders\\Word\\Movies.xlsx";
 		Statement stmt;
-		int rowNum = 0;
+		int rowNum = 1;
+
+		// Create header row
+		Row headerRow = sheet.createRow(0);
+
+//		for (int i = 0; i < headers.length; i++) {
+//			sheet.autoSizeColumn(i);
+//			sheet.setColumnWidth(i, sheet.getColumnWidth(i) + 1000);
+//		}
+
+		// Create bold font
+		CellStyle headerStyle = workbook.createCellStyle();
+		Font font = workbook.createFont();
+		font.setBold(true);
+		headerStyle.setFont(font);
+
+		String[] headers = { "ID", "Name", "Sublink", "Category", "Link", "PageURL" };
+
+		for (int i = 0; i < headers.length; i++) {
+			Cell cell = headerRow.createCell(i);
+			cell.setCellValue(headers[i]);
+			cell.setCellStyle(headerStyle);
+		}
+
+		headerStyle.setFillForegroundColor(IndexedColors.GREY_25_PERCENT.getIndex());
+		headerStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+
 		try {
 			stmt = conn.createStatement();
 			ResultSet rs = stmt.executeQuery(sql);
@@ -251,21 +287,24 @@ public class MovieScraper {
 				row.createCell(5).setCellValue(rs.getString(6));
 
 			}
-			File file = new File(filePath);
+			File file = new File(msPath);
 			if (file.exists()) {
 				System.out.println("File Deleted...");
 				file.delete();
 			}
 			file.getParentFile().mkdirs();
 
-			try (FileOutputStream outputStream = new FileOutputStream(file)) {
-				workbook.write(outputStream);
+			try (FileOutputStream fos1 = new FileOutputStream(msPath);
+					FileOutputStream fos2 = new FileOutputStream(zohoPath)) {
+				workbook.write(fos1);
+				workbook.write(fos2);
 				workbook.close();
 				System.out.println("Data written to Excel file successfully.");
 				System.out.println("Total Rows : " + rowNum);
 			} catch (IOException e) {
 				e.printStackTrace();
 			}
+
 		} catch (SQLException e) {
 			e.printStackTrace();
 		}
