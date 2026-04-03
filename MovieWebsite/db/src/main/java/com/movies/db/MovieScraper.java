@@ -61,17 +61,24 @@ public class MovieScraper {
 			"/actor-arya-movies-collection/", "/actor-jayam-ravi-movies-collection/", "/actor-ajith-movies-collection/",
 			"/actor-karthik-movies-collection/", "/actor-rajkiran-movies-collection/",
 			"/actor-karthi-movies-collection/", "/actor-sivaji-ganesan-movies-collection/",
-			"/actor-kunal-movies-collection/" };
+			"/actor-kunal-movies-collection/", "/tamil-movies/a/", "/tamil-movies/b/", 
+			"/tamil-movies/c/", "/tamil-movies/d/", "/tamil-movies/e/", "/tamil-movies/f/",
+			"/tamil-movies/g/", "/tamil-movies/h/", "/tamil-movies/i/", "/tamil-movies/j/",
+			"/tamil-movies/k/", "/tamil-movies/l/", "/tamil-movies/m/", "/tamil-movies/n/",
+			"/tamil-movies/o/", "/tamil-movies/p/", "/tamil-movies/q/", "/tamil-movies/r/",
+			"/tamil-movies/s/", "/tamil-movies/t/", "/tamil-movies/u/", "/tamil-movies/v/",
+			"/tamil-movies/w/", "/tamil-movies/x/", "/tamil-movies/y/", "/tamil-movies/z/" 
+			};
 
 	private static final int TIMEOUT = 20000; // Increased to 20 seconds timeout
 	private static final int MAX_RETRIES = 3; // Number of retries for failed requests
 	private static final int DELAY_MS = 2000; // 2 seconds delay between requests
-	private static final int MAX_PAGES_WITHOUT_PAGINATION = 10; // Max pages to try if no pagination found
+	private static final int MAX_PAGES_WITHOUT_PAGINATION = 20; // Max pages to try if no pagination found
 	public static Scanner sc = new Scanner(System.in);
 
 	public static void main(String[] args) {
 		Connection conn = null;
-		System.out.println("Enter the Base URL:");
+		System.out.println("Enter the Base URL: Example: https://moviesda16.com");
 		BASE_URL = sc.next();
 		try {
 			// Establish database connection
@@ -79,17 +86,17 @@ public class MovieScraper {
 			System.out.println("Connected to database successfully.");
 
 			// Create table if it doesn't exist
-			// createTable(conn);
+			 createTable(conn);
 
 			// Process each subcategory
-//			for (String subcategory : SUBCATEGORIES) {
-//				try {
-//					processSubcategory(conn, subcategory);
-//				} catch (Exception e) {
-//					System.err.println("Failed to process subcategory: " + subcategory + ", Error: " + e.getMessage());
-//					e.printStackTrace();
-//				}
-//			}
+			for (String subcategory : SUBCATEGORIES) {
+				try {
+					processSubcategory(conn, subcategory);
+				} catch (Exception e) {
+					System.err.println("Failed to process subcategory: " + subcategory + ", Error: " + e.getMessage());
+					e.printStackTrace();
+				}
+			}
 
 		} catch (SQLException e) {
 			System.err.println("Database error: " + e.getMessage());
@@ -245,18 +252,13 @@ public class MovieScraper {
 		Sheet sheet = workbook.createSheet("Movies DB");
 		String sql = "Select *From Movies";
 		String msPath = "C:\\Users\\Admin\\OneDrive\\Music\\Movies DB\\Movies Sheet\\Movies.xlsx";
-		String zohoPath = "Z:\\My Folders\\Word\\Movies.xlsx";
+		String zohoPath = "Z:\\My Folders\\Word\\Movie\\Movies.xlsx";
 		Statement stmt;
 		int rowNum = 1;
 
 		// Create header row
 		Row headerRow = sheet.createRow(0);
-
-//		for (int i = 0; i < headers.length; i++) {
-//			sheet.autoSizeColumn(i);
-//			sheet.setColumnWidth(i, sheet.getColumnWidth(i) + 1000);
-//		}
-
+		sheet.createFreezePane(0, 1); //Freeze header row
 		// Create bold font
 		CellStyle headerStyle = workbook.createCellStyle();
 		Font font = workbook.createFont();
@@ -271,8 +273,8 @@ public class MovieScraper {
 			cell.setCellStyle(headerStyle);
 		}
 
-		headerStyle.setFillForegroundColor(IndexedColors.GREY_25_PERCENT.getIndex());
-		headerStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+//		headerStyle.setFillForegroundColor(IndexedColors.GREY_25_PERCENT.getIndex());
+//		headerStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
 
 		try {
 			stmt = conn.createStatement();
@@ -287,6 +289,13 @@ public class MovieScraper {
 				row.createCell(5).setCellValue(rs.getString(6));
 
 			}
+
+			// Auto-size all columns based on content
+			for (int i = 0; i < headers.length; i++) {
+				sheet.autoSizeColumn(i);
+				sheet.setColumnWidth(i, sheet.getColumnWidth(i) + 512); // add small padding
+			}
+
 			File file = new File(msPath);
 			if (file.exists()) {
 				System.out.println("File Deleted...");
