@@ -39,8 +39,8 @@
 
     <div class="auth-footer">
       No account? <a href="${pageContext.request.contextPath}/signup">Create one</a>
-      &nbsp;·&nbsp;
-      <a href="${pageContext.request.contextPath}/admin/login">Admin login</a>
+      &nbsp;&nbsp;
+<!--  <a href="${pageContext.request.contextPath}/admin/login">Admin login</a> -->
     </div>
   </div>
 </div>

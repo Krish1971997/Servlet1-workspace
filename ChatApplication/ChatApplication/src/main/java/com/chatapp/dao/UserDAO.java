@@ -38,7 +38,7 @@ public class UserDAO {
 
     // ── Authentication ─────────────────────────────────────────
     public User authenticate(String usernameOrEmail, String password) {
-        String sql = "SELECT * FROM users WHERE (username=? OR email=?) AND is_active=TRUE";
+        String sql = "SELECT * FROM users WHERE (username=? OR email=?)";
         try (Connection conn = DBUtil.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setString(1, usernameOrEmail);
@@ -82,7 +82,7 @@ public class UserDAO {
 
     public List<User> findAllUsers() {
         List<User> list = new ArrayList<>();
-        String sql = "SELECT * FROM users WHERE role='user' ORDER BY created_at DESC";
+        String sql = "SELECT * FROM users ORDER BY id asc"; //WHERE role='user'
         try (Connection conn = DBUtil.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql);
              ResultSet rs = ps.executeQuery()) {

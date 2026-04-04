@@ -34,7 +34,8 @@
           <label>Description</label>
           <input type="text" name="description" placeholder="Short description">
         </div>
-        <button type="submit" class="btn btn-primary">Create Group</button>
+        <button type="submit" class="btn btn-primary">Create New Group
+</button>
       </div>
     </form>
   </div>

@@ -35,4 +35,10 @@ public class User {
     public void setCreatedAt(LocalDateTime t){ this.createdAt = t; }
 
     public boolean isAdmin()                { return "admin".equals(role); }
+
+	@Override
+	public String toString() {
+		return "User [id=" + id + ", username=" + username + ", email=" + email + ", password=" + password + ", role="
+				+ role + ", active=" + active + ", createdAt=" + createdAt + "]";
+	}
 }
