@@ -26,15 +26,15 @@ public class LoginServlet extends HttpServlet {
 		System.out.println("username : " + identifier + " - pass : " + password);
 
 		User user = userDAO.authenticate(identifier, password);
-		
-		if (!user.isActive()) {
-			req.setAttribute("error", "User "+user.getUsername()+" is inactive...");
+
+		if (user == null) {
+			req.setAttribute("error", "Invalid credentials.");
 			req.getRequestDispatcher("/jsp/common/login.jsp").forward(req, resp);
 			return;
 		}
 
-		if (user == null) {
-			req.setAttribute("error", "Invalid credentials.");
+		if (!user.isActive()) {
+			req.setAttribute("error", "User " + user.getUsername() + " is inactive...");
 			req.getRequestDispatcher("/jsp/common/login.jsp").forward(req, resp);
 			return;
 		}

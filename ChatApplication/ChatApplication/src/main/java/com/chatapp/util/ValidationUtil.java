@@ -23,4 +23,25 @@ public class ValidationUtil {
 	public static boolean isValidRole(String role) {
 		return ("user".equalsIgnoreCase(role)) || ("admin".equalsIgnoreCase(role));
 	}
+	
+	public static String isSignUpValid(String username, String email,
+			String password, String confirm, String role) {
+		
+		if (!ValidationUtil.isValidUsername(username)) {
+			return "Username must be 3-50 chars (letters, digits, _).";
+		}
+		if (!ValidationUtil.isValidEmail(email)) {
+			return "Invalid email address.";
+		}
+		if (!ValidationUtil.isValidPassword(password)) {
+			return "Password must be at least 6 characters.";
+		}
+		if (!password.equals(confirm)) {
+			return "Passwords do not match.";
+		}
+		if (!ValidationUtil.isValidRole(role)) {
+			return "Invalid role.";
+		}
+		return null;
+	}
 }

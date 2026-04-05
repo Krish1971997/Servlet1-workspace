@@ -18,6 +18,9 @@ public class FeedServlet extends HttpServlet {
     protected void doGet(HttpServletRequest req, HttpServletResponse resp)
             throws ServletException, IOException {
 
+//    	HttpSession session = req.getSession(false);
+//    	User user = (User) session.getAttribute("loggedUser");
+//    	System.out.println("User - "+user);
         User user    = (User) req.getSession().getAttribute("loggedUser");
         boolean isAdmin = user.isAdmin();
 

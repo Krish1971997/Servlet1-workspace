@@ -18,7 +18,9 @@ public class AdminDashboardServlet extends HttpServlet {
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse resp)
             throws ServletException, IOException {
-
+    	
+    	//userDAO.insertBulkData("admin");
+//    	userDAO.generatePassword("admin");
         List<User>  users  = userDAO.findAllUsers();
         List<Post>  posts  = postDAO.getWallPosts(0, true);
         List<Group> groups = groupDAO.getAllGroups();

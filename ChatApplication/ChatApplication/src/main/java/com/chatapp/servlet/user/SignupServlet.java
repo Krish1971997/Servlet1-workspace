@@ -25,21 +25,9 @@ public class SignupServlet extends HttpServlet {
 		String password = req.getParameter("password");
 		String confirm = req.getParameter("confirmPassword");
 
-		// ── Validation ─────────────────────────────────────────
-		if (!ValidationUtil.isValidUsername(username)) {
-			error(req, resp, "Username must be 3-50 chars (letters, digits, _).");
-			return;
-		}
-		if (!ValidationUtil.isValidEmail(email)) {
-			error(req, resp, "Invalid email address.");
-			return;
-		}
-		if (!ValidationUtil.isValidPassword(password)) {
-			error(req, resp, "Password must be at least 6 characters.");
-			return;
-		}
-		if (!password.equals(confirm)) {
-			error(req, resp, "Passwords do not match.");
+		String error=ValidationUtil.isSignUpValid(username, email, password, confirm, "user");
+		if (error != null) {
+			error(req, resp, error);
 			return;
 		}
 
@@ -53,7 +41,7 @@ public class SignupServlet extends HttpServlet {
 		req.getRequestDispatcher("/jsp/common/login.jsp").forward(req, resp);
 	}
 
-	private void error(HttpServletRequest req, HttpServletResponse resp, String msg)
+		private void error(HttpServletRequest req, HttpServletResponse resp, String msg)
 			throws ServletException, IOException {
 		req.setAttribute("error", msg);
 		req.getRequestDispatcher("/jsp/common/signup.jsp").forward(req, resp);

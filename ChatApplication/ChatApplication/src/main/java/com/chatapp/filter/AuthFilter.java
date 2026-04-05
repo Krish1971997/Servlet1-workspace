@@ -23,23 +23,39 @@ public class AuthFilter implements Filter {
         String path = request.getServletPath();
 
         // Public paths
-        if (path.startsWith("/css") || path.startsWith("/js")
-                || path.equals("/login")  || path.equals("/signup")
-                || path.equals("/admin/login") || path.equals("/admin/signup")) {
-            chain.doFilter(req, res);
-            return;
-        }
+        if (path.startsWith("/css") || path.startsWith("/js") || path.equals("/login") || path.equals("/signup")
+//              || path.equals("/admin/login") || path.equals("/admin/signup")
+		) {
+			chain.doFilter(req, res);
+			return;
+		}
+        
+        if (path.startsWith("/admin/signup")) {
+			String redirect = request.getContextPath() + "/signup";
+			response.sendRedirect(redirect);
+			return;
+		}
 
         HttpSession session = request.getSession(false);
         User user = (session != null) ? (User) session.getAttribute("loggedUser") : null;
 
+//        if (user == null) {
+//            // Admin path → admin login, else user login
+//            String redirect = path.startsWith("/admin") ? request.getContextPath() + "/admin/login"
+//                                                        : request.getContextPath() + "/login";
+//            response.sendRedirect(redirect);
+//            return;
+//        }
         if (user == null) {
-            // Admin path → admin login, else user login
-            String redirect = path.startsWith("/admin") ? request.getContextPath() + "/admin/login"
-                                                        : request.getContextPath() + "/login";
-            response.sendRedirect(redirect);
-            return;
-        }
+			// Admin path → admin login, else user login
+			if (path.startsWith("/admin") || path.startsWith("/admin/login")) {
+				String redirect = request.getContextPath() + "/login";
+
+//            path.equals("/admin/login") || path.equals("/admin/signup")
+				response.sendRedirect(redirect);
+				return;
+			}
+		}
 
         // Admin path accessed by non-admin
         if (path.startsWith("/admin") && !user.isAdmin()) {
