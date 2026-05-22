@@ -11,9 +11,10 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.Scanner;
 
+import org.apache.poi.common.usermodel.HyperlinkType;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.CellStyle;
-import org.apache.poi.ss.usermodel.FillPatternType;
+import org.apache.poi.ss.usermodel.CreationHelper;
 import org.apache.poi.ss.usermodel.Font;
 import org.apache.poi.ss.usermodel.IndexedColors;
 import org.apache.poi.ss.usermodel.Row;
@@ -86,12 +87,12 @@ public class MovieScraper {
 			System.out.println("Connected to database successfully.");
 
 			// Create table if it doesn't exist
-			 createTable(conn);
+//			 createTable(conn);
 
 			// Process each subcategory
 			for (String subcategory : SUBCATEGORIES) {
 				try {
-					processSubcategory(conn, subcategory);
+//					processSubcategory(conn, subcategory);
 				} catch (Exception e) {
 					System.err.println("Failed to process subcategory: " + subcategory + ", Error: " + e.getMessage());
 					e.printStackTrace();
@@ -250,6 +251,13 @@ public class MovieScraper {
 	private static void moviesExtract(Connection conn) {
 		Workbook workbook = new XSSFWorkbook();
 		Sheet sheet = workbook.createSheet("Movies DB");
+		CreationHelper createHelper = workbook.getCreationHelper();
+		CellStyle hyperlinkStyle = workbook.createCellStyle();
+		Font hyperlinkFont = workbook.createFont();
+		hyperlinkFont.setUnderline(Font.U_SINGLE);
+		hyperlinkFont.setColor(IndexedColors.BLUE.getIndex());
+		hyperlinkStyle.setFont(hyperlinkFont);
+		
 		String sql = "Select *From Movies";
 		String msPath = "C:\\Users\\Admin\\OneDrive\\Music\\Movies DB\\Movies Sheet\\Movies.xlsx";
 		String zohoPath = "Z:\\My Folders\\Word\\Movie\\Movies.xlsx";
@@ -285,8 +293,36 @@ public class MovieScraper {
 				row.createCell(1).setCellValue(rs.getString(2));
 				row.createCell(2).setCellValue(rs.getString(3));
 				row.createCell(3).setCellValue(rs.getString(4));
-				row.createCell(4).setCellValue(rs.getString(5));
-				row.createCell(5).setCellValue(rs.getString(6));
+				
+				 // Column 5 - URL (index 4)
+		        String url1 = rs.getString(5);
+		        Cell cell4 = row.createCell(4);
+		        if (url1 != null && !url1.isEmpty()) {
+		            org.apache.poi.ss.usermodel.Hyperlink link1 = createHelper.createHyperlink(HyperlinkType.URL);
+		            link1.setAddress(url1);
+		            cell4.setCellValue(url1);
+		            cell4.setHyperlink(link1);
+		            cell4.setCellStyle(hyperlinkStyle);
+		        } else {
+		            cell4.setCellValue("");
+		        }
+		        
+		     // Column 6 - URL (index 5)
+		        String url2 = rs.getString(6);
+		        Cell cell5 = row.createCell(5);
+		        if (url2 != null && !url2.isEmpty()) {
+		            org.apache.poi.ss.usermodel.Hyperlink link2 = createHelper.createHyperlink(HyperlinkType.URL);
+		            link2.setAddress(url2);
+		            cell5.setCellValue(url2);
+		            cell5.setHyperlink(link2);
+		            cell5.setCellStyle(hyperlinkStyle);
+		        } else {
+		            cell5.setCellValue("");
+		        }
+				
+				
+//				row.createCell(4).setCellValue(rs.getString(5));
+//				row.createCell(5).setCellValue(rs.getString(6));
 
 			}
 
