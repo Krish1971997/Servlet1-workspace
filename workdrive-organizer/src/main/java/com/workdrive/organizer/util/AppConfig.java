@@ -6,7 +6,6 @@ import org.slf4j.LoggerFactory;
 import com.workdrive.organizer.service.OrganizerService;
 import com.workdrive.organizer.service.WorkDriveApiService;
 import com.workdrive.organizer.service.ZohoTokenService;
-import com.workdrive.organizer.servlet.FilesApiServlet;
 
 import jakarta.servlet.ServletContext;
 

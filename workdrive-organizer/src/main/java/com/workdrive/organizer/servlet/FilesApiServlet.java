@@ -1,18 +1,19 @@
 package com.workdrive.organizer.servlet;
 
+import java.io.IOException;
+import java.util.List;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.workdrive.organizer.model.WorkDriveFile;
 import com.workdrive.organizer.service.WorkDriveApiService;
 import com.workdrive.organizer.util.AppConfig;
+
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import java.io.IOException;
-import java.io.PrintWriter;
-import java.util.List;
 
 /**
  * GET /api/files Returns JSON list of all files in the main WorkDrive folder.

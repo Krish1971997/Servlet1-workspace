@@ -138,5 +138,4 @@ public class WorkDriveFile {
 				+ ", parentId=" + parentId + ", permalink=" + permalink + "]";
 	}
 
-	
 }

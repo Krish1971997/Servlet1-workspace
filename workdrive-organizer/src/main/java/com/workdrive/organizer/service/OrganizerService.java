@@ -9,8 +9,10 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Core business logic: 1. List all files in the main folder 2. Determine target
- * folder per file (by extension) 3. Move each file to its target folder
+ * Core business logic: 
+ * 1. List all files in the main folder 
+ * 2. Determine target folder per file (by extension) 
+ * 3. Move each file to its target folder
  */
 public class OrganizerService {
 
