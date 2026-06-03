@@ -28,15 +28,8 @@ import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 
 public class MovieScraperAPI {
-/** private static final String DB_URL = "jdbc:sqlserver://localhost:1433;databaseName=Krishna_Testing;trustServerCertificate=true";
-	private static final String DB_USER = "sa"; 
-	private static final String DB_PASSWORD = "15848"; */
-	
-//	private static final String DB_URL = "jdbc:postgresql://localhost:5432/chatappv2";
-//	private static final String DB_USER = "postgres"; 
-//	private static final String DB_PASSWORD = "postgres";
-	
-	private static List<Movie> movieList=new ArrayList<>();
+
+	private static List<Movie> movieList = new ArrayList<>();
 	private static String BASE_URL = null; // "https://moviesda16.com/";
 	private static final String[] SUBCATEGORIES = { "/tamil-2026-movies/", "/tamil-2025-movies/", "/tamil-2024-movies/",
 			"/tamil-2023-movies/", "/tamil-2022-movies/", "/tamil-2021-movies/", "/tamil-2020-movies/",
@@ -68,86 +61,45 @@ public class MovieScraperAPI {
 			"/actor-arya-movies-collection/", "/actor-jayam-ravi-movies-collection/", "/actor-ajith-movies-collection/",
 			"/actor-karthik-movies-collection/", "/actor-rajkiran-movies-collection/",
 			"/actor-karthi-movies-collection/", "/actor-sivaji-ganesan-movies-collection/",
-			"/actor-kunal-movies-collection/", "/tamil-movies/a/", "/tamil-movies/b/", 
-			"/tamil-movies/c/", "/tamil-movies/d/", "/tamil-movies/e/", "/tamil-movies/f/",
-			"/tamil-movies/g/", "/tamil-movies/h/", "/tamil-movies/i/", "/tamil-movies/j/",
-			"/tamil-movies/k/", "/tamil-movies/l/", "/tamil-movies/m/", "/tamil-movies/n/",
-			"/tamil-movies/o/", "/tamil-movies/p/", "/tamil-movies/q/", "/tamil-movies/r/",
-			"/tamil-movies/s/", "/tamil-movies/t/", "/tamil-movies/u/", "/tamil-movies/v/",
-			"/tamil-movies/w/", "/tamil-movies/x/", "/tamil-movies/y/", "/tamil-movies/z/" 
-			};
+			"/actor-kunal-movies-collection/", "/tamil-movies/a/", "/tamil-movies/b/", "/tamil-movies/c/",
+			"/tamil-movies/d/", "/tamil-movies/e/", "/tamil-movies/f/", "/tamil-movies/g/", "/tamil-movies/h/",
+			"/tamil-movies/i/", "/tamil-movies/j/", "/tamil-movies/k/", "/tamil-movies/l/", "/tamil-movies/m/",
+			"/tamil-movies/n/", "/tamil-movies/o/", "/tamil-movies/p/", "/tamil-movies/q/", "/tamil-movies/r/",
+			"/tamil-movies/s/", "/tamil-movies/t/", "/tamil-movies/u/", "/tamil-movies/v/", "/tamil-movies/w/",
+			"/tamil-movies/x/", "/tamil-movies/y/", "/tamil-movies/z/" };
 
 	private static final int TIMEOUT = 20000; // Increased to 20 seconds timeout
 	private static final int MAX_RETRIES = 3; // Number of retries for failed requests
 	private static final int DELAY_MS = 2000; // 2 seconds delay between requests
 	private static final int MAX_PAGES_WITHOUT_PAGINATION = 20; // Max pages to try if no pagination found
-	private static final String filePath="Movies.xlsx";
+	private static final String filePath = "Movies.xlsx";
 	private static final File file = new File(filePath);
 	public static Scanner sc = new Scanner(System.in);
 
 	public static void main(String[] args) throws Exception {
-//		Connection conn = null;
-		System.out.println("Enter the Base URL: Example: https://moviesda16.com");
+		System.out.println("Enter the Base URL: Example: https://moviesda31.com");
 		BASE_URL = sc.next();
 		try {
-			// Establish database connection
-//			conn = DriverManager.getConnection(DB_URL, DB_USER, DB_PASSWORD);
-//			System.out.println("Connected to database successfully.");
+			for (String subcategory : SUBCATEGORIES) {
+				try {
+					processSubcategory(subcategory);
+				} catch (Exception e) {
+					System.err.println("Failed to process subcategory: " + subcategory + ", Error: " + e.getMessage());
+				}
+			}
 
-//			 createTable(conn);
-
-			
-			System.err.println("Test");
-			// Process each subcategory
-//			for (String subcategory : SUBCATEGORIES) {
-//				try {
-//					processSubcategory(subcategory);
-//				} catch (Exception e) {
-//					System.err.println("Failed to process subcategory: " + subcategory + ", Error: " + e.getMessage());
-////					e.printStackTrace();
-//				}
-//			}
-
-//		} catch (SQLException e) {
-//			System.err.println("Database error: " + e.getMessage());
-//			e.printStackTrace();
 		} catch (Exception e) {
 			System.err.println("Error: " + e.getMessage());
 			e.printStackTrace();
 		} finally {
 
-//			try {
-//				moviesExtract();
-			UploadFileAPI uploadFile=new UploadFileAPI();
+			moviesExtract();
+			UploadFileAPI uploadFile = new UploadFileAPI();
 			uploadFile.uploadToWorkDrive(file);
-//				conn.close();
-//			} catch (SQLException e) {
-//				e.printStackTrace();
-//			}
-//			System.out.println("Database connection closed.");
-
 		}
 	}
 
-//	private static void createTable(Connection conn) throws SQLException {
-//	/**	String createTableSQL = "IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'Movies') "
-//				+ "CREATE TABLE Movies (id INT IDENTITY(1,1) PRIMARY KEY, name NVARCHAR(255), "
-//				+ "sublink NVARCHAR(255), category NVARCHAR(100), link NVARCHAR(255), "
-//				+ "pageurl varchar(1000) )";
-//		try (PreparedStatement stmt = conn.prepareStatement(createTableSQL)) {
-//			stmt.execute();
-//			System.out.println("Table 'Movies' created or already exists.");
-//		} */
-//
-//		String query = "Truncate table Movies";
-//		try (PreparedStatement stmt = conn.prepareStatement(query)) {
-//			stmt.execute();
-//			System.out.println("Truncated Table 'Movies'");
-//		}
-//
-//	}
-
-	private static void processSubcategory( String subcategory) throws Exception {
+	private static void processSubcategory(String subcategory) throws Exception {
 		String baseSubcategoryUrl = BASE_URL + subcategory;
 		int lastPage = getLastPageNumber(baseSubcategoryUrl);
 		System.out.println("Processing subcategory: " + subcategory + ", Total pages: " + lastPage);
@@ -157,13 +109,13 @@ public class MovieScraperAPI {
 			System.out.println("Scraping page: " + pageUrl);
 			try {
 				if (!scrapePage(pageUrl, subcategory)) {
-					System.err.println("Page not found or empty: " + pageUrl + ". Stopping pagination for this subcategory.");
+					System.err.println(
+							"Page not found or empty: " + pageUrl + ". Stopping pagination for this subcategory.");
 					break; // Stop if page is not found or empty
 				}
 				Thread.sleep(DELAY_MS); // Delay to avoid overwhelming the server
 			} catch (Exception e) {
 				System.err.println("Error scraping page " + pageUrl + ": " + e.getMessage());
-//				e.printStackTrace();
 			}
 		}
 	}
@@ -193,7 +145,8 @@ public class MovieScraperAPI {
 				return MAX_PAGES_WITHOUT_PAGINATION; // Default to 10 pages on HTTP error
 			} catch (Exception e) {
 				retries++;
-				System.err.println("Retry " + retries + "/" + MAX_RETRIES + " for " + subcategoryUrl + ": " + e.getMessage());
+				System.err.println(
+						"Retry " + retries + "/" + MAX_RETRIES + " for " + subcategoryUrl + ": " + e.getMessage());
 				if (retries == MAX_RETRIES) {
 					System.err.println("Failed to get last page number for " + subcategoryUrl + " after " + MAX_RETRIES
 							+ " retries. Defaulting to max " + MAX_PAGES_WITHOUT_PAGINATION + " pages.");
@@ -218,43 +171,20 @@ public class MovieScraperAPI {
 					System.err.println("No movie data found on page: " + pageUrl);
 					return false; // Indicate page is empty or not found
 				}
-				
+
 				for (Element movieLink : movieDivs) {
 					String name = movieLink.text().trim();
 					String sublink = movieLink.attr("href");
 					String fullLink = BASE_URL + sublink;
-					subcategory= subcategory.replace("/", "");
-					
-					Movie movie=new Movie(name,sublink, subcategory, fullLink,  pageUrl);
+					subcategory = subcategory.replace("/", "");
+
+					Movie movie = new Movie(name, sublink, subcategory, fullLink, pageUrl);
 					movieList.add(movie);
 				}
-				
-				
-				
-				
-//				}
-//				String insertSQL = "INSERT INTO Movies (name, sublink, category, link, pageurl) VALUES (?, ?, ?, ?, ?)";
-//				try (PreparedStatement pstmt = conn.prepareStatement(insertSQL)) {
-//					for (Element movieLink : movieDivs) {
-//						String name = movieLink.text().trim();
-//						String sublink = movieLink.attr("href");
-//						String fullLink = BASE_URL + sublink;
-//
-//						// Set parameters
-//						pstmt.setString(1, name);
-//						pstmt.setString(2, sublink);
-//						pstmt.setString(3, subcategory.replace("/", "")); // Remove slashes for cleaner category name
-//						pstmt.setString(4, fullLink);
-//						pstmt.setString(5, pageUrl);
-//
-//						// Execute insert
-//						pstmt.executeUpdate();
-//						System.out.println("Inserted: " + name + ", " + sublink + ", " + subcategory + ", " + fullLink);
-//					}
-//				}
 				return true; // Success, page processed
 			} catch (HttpStatusException e) {
-				System.err.println("HTTP error fetching " + pageUrl + ": " + e.getStatusCode() + " - " + e.getMessage());
+				System.err
+						.println("HTTP error fetching " + pageUrl + ": " + e.getStatusCode() + " - " + e.getMessage());
 				return false; // Stop pagination if page is not found (e.g., 404)
 			} catch (Exception e) {
 				retries++;
@@ -277,17 +207,11 @@ public class MovieScraperAPI {
 		hyperlinkFont.setUnderline(Font.U_SINGLE);
 		hyperlinkFont.setColor(IndexedColors.BLUE.getIndex());
 		hyperlinkStyle.setFont(hyperlinkFont);
-		
-//		String sql = "Select *From Movies";
-//		String msPath = "C:\\Users\\Admin\\OneDrive\\Music\\Movies DB\\Movies Sheet\\Movies.xlsx";
-//		String zohoPath = "Z:\\My Folders\\Word\\Movie\\Movies.xlsx";
-//		Statement stmt;
-//		String filePath="Movies.xlsx";
 		int rowNum = 1;
 
 		// Create header row
 		Row headerRow = sheet.createRow(0);
-		sheet.createFreezePane(0, 1); //Freeze header row
+		sheet.createFreezePane(0, 1); // Freeze header row
 		// Create bold font
 		CellStyle headerStyle = workbook.createCellStyle();
 		Font font = workbook.createFont();
@@ -302,88 +226,52 @@ public class MovieScraperAPI {
 			cell.setCellStyle(headerStyle);
 		}
 
-//		headerStyle.setFillForegroundColor(IndexedColors.GREY_25_PERCENT.getIndex());
-//		headerStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
-
-		for(Movie movierow: movieList) {
+		for (Movie movierow : movieList) {
 			Row row = sheet.createRow(rowNum++);
 			row.createCell(0).setCellValue(movierow.getId());
 			row.createCell(1).setCellValue(movierow.getName());
 			row.createCell(2).setCellValue(movierow.getSubLink());
 			row.createCell(3).setCellValue(movierow.getCategory());
-//		}
-		
-//		try {
-//			stmt = conn.createStatement();
-//			ResultSet rs = stmt.executeQuery(sql);
-//			while (rs.next()) {
-//				Row row = sheet.createRow(rowNum++);
-//				row.createCell(0).setCellValue(rs.getInt(1));
-//				row.createCell(1).setCellValue(rs.getString(2));
-//				row.createCell(2).setCellValue(rs.getString(3));
-//				row.createCell(3).setCellValue(rs.getString(4));
-				
-				 // Column 5 - URL (index 4)
-		        String url1 = movierow.getLink();
-		        Cell cell4 = row.createCell(4);
-		        if (url1 != null && !url1.isEmpty()) {
-		            org.apache.poi.ss.usermodel.Hyperlink link1 = createHelper.createHyperlink(HyperlinkType.URL);
-		            link1.setAddress(url1);
-		            cell4.setCellValue(url1);
-		            cell4.setHyperlink(link1);
-		            cell4.setCellStyle(hyperlinkStyle);
-		        } else {
-		            cell4.setCellValue("");
-		        }
-		        
-		     // Column 6 - URL (index 5)
-		        String url2 = movierow.getPageurl();
-		        Cell cell5 = row.createCell(5);
-		        if (url2 != null && !url2.isEmpty()) {
-		            org.apache.poi.ss.usermodel.Hyperlink link2 = createHelper.createHyperlink(HyperlinkType.URL);
-		            link2.setAddress(url2);
-		            cell5.setCellValue(url2);
-		            cell5.setHyperlink(link2);
-		            cell5.setCellStyle(hyperlinkStyle);
-		        } else {
-		            cell5.setCellValue("");
-		        }
-				
-				
-//				row.createCell(4).setCellValue(rs.getString(5));
-//				row.createCell(5).setCellValue(rs.getString(6));
-
+			// Column 5 - URL (index 4)
+			String url1 = movierow.getLink();
+			Cell cell4 = row.createCell(4);
+			if (url1 != null && !url1.isEmpty()) {
+				org.apache.poi.ss.usermodel.Hyperlink link1 = createHelper.createHyperlink(HyperlinkType.URL);
+				link1.setAddress(url1);
+				cell4.setCellValue(url1);
+				cell4.setHyperlink(link1);
+				cell4.setCellStyle(hyperlinkStyle);
+			} else {
+				cell4.setCellValue("");
 			}
 
-			// Auto-size all columns based on content
-			for (int i = 0; i < headers.length; i++) {
-				sheet.autoSizeColumn(i);
-				sheet.setColumnWidth(i, sheet.getColumnWidth(i) + 512); // add small padding
+			// Column 6 - URL (index 5)
+			String url2 = movierow.getPageurl();
+			Cell cell5 = row.createCell(5);
+			if (url2 != null && !url2.isEmpty()) {
+				org.apache.poi.ss.usermodel.Hyperlink link2 = createHelper.createHyperlink(HyperlinkType.URL);
+				link2.setAddress(url2);
+				cell5.setCellValue(url2);
+				cell5.setHyperlink(link2);
+				cell5.setCellStyle(hyperlinkStyle);
+			} else {
+				cell5.setCellValue("");
 			}
+		}
 
-//			File file = new File(file);
-//			if (file.exists()) {
-//				System.out.println("File Deleted...");
-//				file.delete();
-//			}
-//			file.getParentFile().mkdirs();
+		// Auto-size all columns based on content
+		for (int i = 0; i < headers.length; i++) {
+			sheet.autoSizeColumn(i);
+			sheet.setColumnWidth(i, sheet.getColumnWidth(i) + 512); // add small padding
+		}
 
-			try (FileOutputStream fos1 = new FileOutputStream(filePath)
-//					FileOutputStream fos2 = new FileOutputStream(zohoPath)
-							) {
-				workbook.write(fos1);
-//				workbook.write(fos2);
-				workbook.close();
-				System.out.println("Data written to Excel file successfully.");
-				System.out.println("Total Rows : " + rowNum);
-			} catch (IOException e) {
-				e.printStackTrace();
-			}
-
-//		} catch (SQLException e) {
-//			e.printStackTrace();
-//		}
+		try (FileOutputStream fos1 = new FileOutputStream(filePath)) {
+			workbook.write(fos1);
+			workbook.close();
+			System.out.println("Data written to Excel file successfully.");
+			System.out.println("Total Rows : " + rowNum);
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
 	}
-
 }
-
