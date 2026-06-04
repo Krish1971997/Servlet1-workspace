@@ -9,15 +9,15 @@
     <!-- Zoho OAuth Config - Update these values -->
     <context-param>
         <param-name>ZOHO_CLIENT_ID</param-name>
-        <param-value>YOUR_CLIENT_ID</param-value>
+        <param-value>1000.I7L8AIDAW8EIVJ0PW0O84NKMHAXBFV</param-value>
     </context-param>
     <context-param>
         <param-name>ZOHO_CLIENT_SECRET</param-name>
-        <param-value>YOUR_CLIENT_SECRET</param-value>
+        <param-value>1c2192e08af94e368a964ac490624ef803f91f14ab</param-value>
     </context-param>
     <context-param>
         <param-name>ZOHO_REFRESH_TOKEN</param-name>
-        <param-value>YOUR_REFRESH_TOKEN</param-value>
+        <param-value>1000.72ed80257421fd9f64870b1aaba3bd60.d498f4bb72cdee00bfd61b20651102a4</param-value>
     </context-param>
     <!-- WorkDrive Folder ID from the URL: folders/t9myue5af95240731431ab125f3a45b139ce0 -->
     <context-param>
