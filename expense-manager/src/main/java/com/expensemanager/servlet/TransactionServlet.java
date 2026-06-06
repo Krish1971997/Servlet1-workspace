@@ -13,82 +13,85 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.*;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 @WebServlet("/transactions")
 public class TransactionServlet extends HttpServlet {
 
-    @Override
-    protected void doGet(HttpServletRequest req, HttpServletResponse resp)
-            throws ServletException, IOException {
+	private static final Logger log = LoggerFactory.getLogger(TransactionServlet.class);
 
-        String filter   = req.getParameter("filter");   // INCOME | EXPENSE | null
-        String pageStr  = req.getParameter("page");
-        int page        = (pageStr != null) ? Integer.parseInt(pageStr) : 1;
-        int pageSize    = 15;
+	@Override
+	protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
 
-        try {
-            TransactionDAO txnDao = new TransactionDAO();
-            CategoryDAO catDao    = new CategoryDAO();
-            ColumnDefinitionDAO colDao = new ColumnDefinitionDAO();
+		String filter = req.getParameter("filter"); // INCOME | EXPENSE | null
+		String pageStr = req.getParameter("page");
+		int page = (pageStr != null) ? Integer.parseInt(pageStr) : 1;
+		int pageSize = 15;
 
-            List<Transaction> txns = txnDao.findAll(filter, page, pageSize);
-            int total = txnDao.count(filter);
-            int totalPages = (int) Math.ceil((double) total / pageSize);
+		try {
+			TransactionDAO txnDao = new TransactionDAO();
+			CategoryDAO catDao = new CategoryDAO();
+			ColumnDefinitionDAO colDao = new ColumnDefinitionDAO();
 
-            req.setAttribute("transactions",   txns);
-            req.setAttribute("incomeCategories",  catDao.findByType("INCOME"));
-            req.setAttribute("expenseCategories", catDao.findByType("EXPENSE"));
-            req.setAttribute("incomeColumns",  colDao.findByType("INCOME"));
-            req.setAttribute("expenseColumns", colDao.findByType("EXPENSE"));
-            req.setAttribute("filter",     filter);
-            req.setAttribute("page",       page);
-            req.setAttribute("totalPages", totalPages);
-            req.setAttribute("total",      total);
-        } catch (Exception e) {
-            req.setAttribute("dbError", e.getMessage());
-        }
-        req.getRequestDispatcher("/WEB-INF/views/transactions.jsp").forward(req, resp);
-    }
+			List<Transaction> txns = txnDao.findAll(filter, page, pageSize);
+			int total = txnDao.count(filter);
+			int totalPages = (int) Math.ceil((double) total / pageSize);
 
-    @Override
-    protected void doPost(HttpServletRequest req, HttpServletResponse resp)
-            throws ServletException, IOException {
+			req.setAttribute("transactions", txns);
+			req.setAttribute("incomeCategories", catDao.findByType("INCOME"));
+			req.setAttribute("expenseCategories", catDao.findByType("EXPENSE"));
+			req.setAttribute("incomeColumns", colDao.findByType("INCOME"));
+			req.setAttribute("expenseColumns", colDao.findByType("EXPENSE"));
+			req.setAttribute("filter", filter);
+			req.setAttribute("page", page);
+			req.setAttribute("totalPages", totalPages);
+			req.setAttribute("total", total);
+		} catch (Exception e) {
+			req.setAttribute("dbError", e.getMessage());
+		}
+		req.getRequestDispatcher("/WEB-INF/views/transactions.jsp").forward(req, resp);
+	}
 
-        req.setCharacterEncoding("UTF-8");
-        String typeStr    = req.getParameter("type");
-        String amountStr  = req.getParameter("amount");
-        String catIdStr   = req.getParameter("categoryId");
-        String note       = req.getParameter("note");
-        String dateStr    = req.getParameter("dateTime");
+	@Override
+	protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
 
-        if (typeStr == null || amountStr == null || catIdStr == null) {
-            resp.sendRedirect(req.getContextPath() + "/transactions?error=missing");
-            return;
-        }
+		req.setCharacterEncoding("UTF-8");
+		String typeStr = req.getParameter("type");
+		String amountStr = req.getParameter("amount");
+		String catIdStr = req.getParameter("categoryId");
+		String note = req.getParameter("note");
+		String dateStr = req.getParameter("dateTime");
 
-        Transaction t = new Transaction();
-        t.setType(Transaction.Type.valueOf(typeStr.toUpperCase()));
-        t.setAmount(new BigDecimal(amountStr));
-        t.setCategoryId(Integer.parseInt(catIdStr));
-        t.setNote(note);
-        t.setDateTime(dateStr != null && !dateStr.isBlank()
-                ? LocalDateTime.parse(dateStr) : LocalDateTime.now());
+		if (typeStr == null || amountStr == null || catIdStr == null) {
+			resp.sendRedirect(req.getContextPath() + "/transactions?error=missing");
+			return;
+		}
 
-        // Collect custom field values (param name = "custom_<col_key>")
-        Map<String, String> customs = new LinkedHashMap<>();
-        req.getParameterNames().asIterator().forEachRemaining(p -> {
-            if (p.startsWith("custom_")) {
-                String key = p.substring(7);
-                String val = req.getParameter(p);
-                if (val != null && !val.isBlank()) customs.put(key, val);
-            }
-        });
-        t.setCustomValues(customs);
+		Transaction t = new Transaction();
+		t.setType(Transaction.Type.valueOf(typeStr.toUpperCase()));
+		t.setAmount(new BigDecimal(amountStr));
+		t.setCategoryId(Integer.parseInt(catIdStr));
+		t.setNote(note);
+		t.setDateTime(dateStr != null && !dateStr.isBlank() ? LocalDateTime.parse(dateStr) : LocalDateTime.now());
 
-        try {
-            new TransactionDAO().insert(t);
-            resp.sendRedirect(req.getContextPath() + "/transactions?success=1&filter=" + typeStr);
-        } catch (Exception e) {
-            resp.sendRedirect(req.getContextPath() + "/transactions?error=" + e.getMessage());
-        }
-    }
+		// Collect custom field values (param name = "custom_<col_key>")
+		Map<String, String> customs = new LinkedHashMap<>();
+		req.getParameterNames().asIterator().forEachRemaining(p -> {
+			if (p.startsWith("custom_")) {
+				String key = p.substring(7);
+				String val = req.getParameter(p);
+				if (val != null && !val.isBlank())
+					customs.put(key, val);
+			}
+		});
+		t.setCustomValues(customs);
+
+		try {
+			new TransactionDAO().insert(t);
+			resp.sendRedirect(req.getContextPath() + "/transactions?success=1&filter=" + typeStr);
+		} catch (Exception e) {
+			resp.sendRedirect(req.getContextPath() + "/transactions?error=" + e.getMessage());
+		}
+	}
 }

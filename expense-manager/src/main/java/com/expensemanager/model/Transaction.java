@@ -7,43 +7,89 @@ import java.util.Map;
 
 public class Transaction {
 
-    public enum Type { INCOME, EXPENSE }
+	public enum Type {
+		INCOME, EXPENSE
+	}
 
-    private int id;
-    private Type type;
-    private LocalDateTime dateTime;
-    private BigDecimal amount;
-    private int categoryId;
-    private String categoryName;
-    private String note;
-    // key = col_key, value = display value
-    private Map<String, String> customValues = new LinkedHashMap<>();
+	private int id;
+	private Type type;
+	private LocalDateTime dateTime;
+	private BigDecimal amount;
+	private int categoryId;
+	private String categoryName;
+	private String note;
+	// key = col_key, value = display value
+	private Map<String, String> customValues = new LinkedHashMap<>();
 
-    public Transaction() {}
+	public Transaction() {
+	}
 
-    // ── Getters / Setters ────────────────────────────────
-    public int getId() { return id; }
-    public void setId(int id) { this.id = id; }
+	// ── Getters / Setters ────────────────────────────────
+	public int getId() {
+		return id;
+	}
 
-    public Type getType() { return type; }
-    public void setType(Type type) { this.type = type; }
+	public void setId(int id) {
+		this.id = id;
+	}
 
-    public LocalDateTime getDateTime() { return dateTime; }
-    public void setDateTime(LocalDateTime dateTime) { this.dateTime = dateTime; }
+	public Type getType() {
+		return type;
+	}
 
-    public BigDecimal getAmount() { return amount; }
-    public void setAmount(BigDecimal amount) { this.amount = amount; }
+	public void setType(Type type) {
+		this.type = type;
+	}
 
-    public int getCategoryId() { return categoryId; }
-    public void setCategoryId(int categoryId) { this.categoryId = categoryId; }
+	public LocalDateTime getDateTime() {
+		return dateTime;
+	}
 
-    public String getCategoryName() { return categoryName; }
-    public void setCategoryName(String categoryName) { this.categoryName = categoryName; }
+	public void setDateTime(LocalDateTime dateTime) {
+		this.dateTime = dateTime;
+	}
 
-    public String getNote() { return note; }
-    public void setNote(String note) { this.note = note; }
+	public BigDecimal getAmount() {
+		return amount;
+	}
 
-    public Map<String, String> getCustomValues() { return customValues; }
-    public void setCustomValues(Map<String, String> customValues) { this.customValues = customValues; }
-    public void addCustomValue(String key, String value) { this.customValues.put(key, value); }
+	public void setAmount(BigDecimal amount) {
+		this.amount = amount;
+	}
+
+	public int getCategoryId() {
+		return categoryId;
+	}
+
+	public void setCategoryId(int categoryId) {
+		this.categoryId = categoryId;
+	}
+
+	public String getCategoryName() {
+		return categoryName;
+	}
+
+	public void setCategoryName(String categoryName) {
+		this.categoryName = categoryName;
+	}
+
+	public String getNote() {
+		return note;
+	}
+
+	public void setNote(String note) {
+		this.note = note;
+	}
+
+	public Map<String, String> getCustomValues() {
+		return customValues;
+	}
+
+	public void setCustomValues(Map<String, String> customValues) {
+		this.customValues = customValues;
+	}
+
+	public void addCustomValue(String key, String value) {
+		this.customValues.put(key, value);
+	}
 }

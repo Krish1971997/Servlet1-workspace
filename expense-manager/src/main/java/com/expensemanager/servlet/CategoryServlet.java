@@ -1,14 +1,20 @@
 package com.expensemanager.servlet;
 
 import com.expensemanager.dao.CategoryDAO;
+import com.expensemanager.dao.TransactionDAO;
+
 import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.*;
 import jakarta.servlet.*;
 import java.io.IOException;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 @WebServlet("/categories")
 public class CategoryServlet extends HttpServlet {
 
+	private static final Logger log = LoggerFactory.getLogger(CategoryServlet.class);
     @Override
     protected void doPost(HttpServletRequest req, HttpServletResponse resp)
             throws ServletException, IOException {

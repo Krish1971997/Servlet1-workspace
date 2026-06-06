@@ -8,8 +8,11 @@ import java.sql.*;
 import java.time.LocalDateTime;
 import java.util.*;
 
-public class TransactionDAO {
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+public class TransactionDAO {
+	private static final Logger log = LoggerFactory.getLogger(TransactionDAO.class);
     private final DBConnection db = DBConnection.getInstance();
 
     // ── INSERT ────────────────────────────────────────────
