@@ -7,15 +7,6 @@ import jakarta.mail.internet.*;
 import jakarta.mail.util.ByteArrayDataSource;
 
 import java.util.Properties;
-
-/**
- * Gmail SMTP service.
- * Uses App Password (not regular password) — enable 2FA + App Passwords in Gmail.
- *
- * Configuration via web.xml context-params:
- *   GMAIL_FROM     = yourmail@gmail.com
- *   GMAIL_APP_PASS = xxxx xxxx xxxx xxxx   (Gmail App Password)
- */
 public class GmailService {
 
     private final String from;
