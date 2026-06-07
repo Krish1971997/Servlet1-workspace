@@ -22,7 +22,7 @@ public class HomeServlet extends HttpServlet {
 	protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
 
 		int bookId = (Integer) req.getSession().getAttribute("activeBookId");
-		System.out.println("Book ID: "+bookId);
+//		System.out.println("Book ID: "+bookId);
 		try {
 			TransactionDAO dao = new TransactionDAO();
 			BigDecimal income = dao.sumByType("INCOME", bookId);

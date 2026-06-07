@@ -69,7 +69,7 @@
         <input type="text"   name="name"   placeholder="New expense category"
                class="full-w" required
                onkeydown="if(event.key==='Enter'){event.preventDefault();this.closest('form').submit();}">
-        <button type="submit" class="btn btn-danger btn-sm" style="white-space:nowrap">+ Add</button>
+        <button type="submit" class="btn btn-success btn-sm" style="white-space:nowrap">+ Add</button>
       </form>
       <div class="table-wrap">
         <table><tbody>
@@ -139,10 +139,10 @@
                 <%-- Find parent name from combined list --%>
                 <span class="chip">
                   <c:forEach var="cat" items="${incomeCategories}">
-                    <c:if test="${cat.id == sc.categoryId}">${cat.name} (I)</c:if>
+                    <c:if test="${cat.id == sc.category_id}">${cat.name} (I)</c:if>
                   </c:forEach>
                   <c:forEach var="cat" items="${expenseCategories}">
-                    <c:if test="${cat.id == sc.categoryId}">${cat.name} (E)</c:if>
+                    <c:if test="${cat.id == sc.category_id}">${cat.name} (E)</c:if>
                   </c:forEach>
                 </span>
               </td>
@@ -206,7 +206,7 @@
         <input type="hidden" name="type"   value="EXPENSE">
         <input type="text"   name="colName" placeholder="Column name" class="full-w" required
                onkeydown="if(event.key==='Enter'){event.preventDefault();this.closest('form').submit();}">
-        <button type="submit" class="btn btn-danger btn-sm" style="white-space:nowrap">+ Add</button>
+        <button type="submit" class="btn btn-success btn-sm" style="white-space:nowrap">+ Add</button>
       </form>
       <div class="table-wrap"><table><tbody>
         <c:forEach var="col" items="${expenseColumns}">

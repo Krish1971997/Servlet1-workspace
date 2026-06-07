@@ -14,8 +14,8 @@
   <div class="flex gap-1 ml-auto">
     <button class="btn btn-success btn-sm" onclick="openModal('incomeModal')">+ Income</button>
     <button class="btn btn-danger btn-sm"  onclick="openModal('expenseModal')">+ Expense</button>
-    <button class="btn btn-outline btn-sm" onclick="openModal('catModal')">+ Category</button>
-    <button class="btn btn-outline btn-sm" onclick="openModal('colModal')">+ Column</button>
+<!--<button class="btn btn-outline btn-sm" onclick="openModal('catModal')">+ Category</button>
+    <button class="btn btn-outline btn-sm" onclick="openModal('colModal')">+ Column</button>  --> 
   </div>
 </div>
 

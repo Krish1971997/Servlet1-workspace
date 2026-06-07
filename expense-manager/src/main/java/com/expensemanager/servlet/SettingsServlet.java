@@ -66,9 +66,9 @@ public class SettingsServlet extends HttpServlet {
 			case "addSubCategory" : {
 				System.out.println("Inside addSubCategory:");
 				
-				/**Enumeration<String> paramNames = req.getParameterNames();
+				Enumeration<String> paramNames = req.getParameterNames();
 
-				while (paramNames.hasMoreElements()) {
+			/**	while (paramNames.hasMoreElements()) {
 				    String key = paramNames.nextElement();
 				    String value = req.getParameter(key);
 
@@ -76,7 +76,7 @@ public class SettingsServlet extends HttpServlet {
 				} */
 				
 				String name = req.getParameter("name");
-				int catId = Integer.parseInt(req.getParameter("catId"));
+				int catId = Integer.parseInt(req.getParameter("categoryId"));
 				if (name != null && !name.isBlank())
 					new SubCategoryDAO().insert(name.trim(), catId);
 				break;
