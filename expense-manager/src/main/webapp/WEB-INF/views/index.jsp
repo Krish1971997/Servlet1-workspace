@@ -46,26 +46,36 @@
   <div class="table-wrap">
     <table>
       <thead>
-        <tr><th>Date</th><th>Type</th><th>Category</th><th>Amount</th><th>Note</th></tr>
+        <tr><th>Date</th><th>Type</th><th>Category</th><th>Sub Category</th><th>Amount</th><th>Note</th></tr>
       </thead>
       <tbody>
-        <c:forEach var="t" items="${recentTxns}">
-          <tr>
-            <!-- <td class="text-muted"> -->
-              <fmt:formatDate value="${t.dateTime}" pattern="dd MMM yyyy"/>
-              <!-- <fmt:formatDate value="${t.dateTime.format(java.time.format.DateTimeFormatter.ofPattern("dd MMM yyyy"))}" pattern="dd MMM yyyy"/> 
-              <td class="text-muted">${t.formattedDate}</td> -->
-              
-           </td> 
-            <td><span class="badge ${t.type=='INCOME'?'income':'expense'}">${t.type}</span></td>
-            <td><span class="chip">${t.categoryName}</span></td>
-            <td class="${t.type=='INCOME'?'amount-pos':'amount-neg'}">
-              ${t.type=='INCOME'?'+':'-'}₹<fmt:formatNumber value="${t.amount}" pattern="#,##0.00"/>
-            </td>
-            <td class="text-muted">${t.note}</td>
-          </tr>
-        </c:forEach>
-        <c:if test="${empty recentTxns}">
+				<c:forEach var="t" items="${recentTxns}">
+					<tr>
+						<td class="text-muted">${t.formattedDate}</td>
+						<td><c:choose>
+								<c:when test="${t.type == 'INCOME'}">
+									<span class="badge income">INCOME</span>
+								</c:when>
+								<c:otherwise>
+									<span class="badge expense">EXPENSE</span>
+								</c:otherwise>
+							</c:choose></td>
+						<td><span class="chip">${t.categoryName}</span></td>
+						<td><span class="chip">${t.subCategoryName}</span></td>
+						<td><c:choose>
+								<c:when test="${t.type == 'INCOME'}">
+									<span class="amount-pos">+₹${t.amount}</span>
+								</c:when>
+								<c:otherwise>
+									<span class="amount-neg">-₹${t.amount}</span>
+								</c:otherwise>
+							</c:choose></td>
+						<td class="text-muted">${t.note}</td>
+					</tr>
+				</c:forEach>
+
+
+				<c:if test="${empty recentTxns}">
           <tr><td colspan="5" class="empty-state">No transactions yet. Add one above!</td></tr>
         </c:if>
       </tbody>

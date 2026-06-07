@@ -18,6 +18,7 @@ public class AppContextListener implements ServletContextListener {
 		String url = sce.getServletContext().getInitParameter("DB_URL");
 		String user = sce.getServletContext().getInitParameter("DB_USER");
 		String pass = sce.getServletContext().getInitParameter("DB_PASSWORD");
+		log.info("DB Start to Connect...");
 		try {
 			Class.forName("org.postgresql.Driver");
 			DBConnection.init(url, user, pass);

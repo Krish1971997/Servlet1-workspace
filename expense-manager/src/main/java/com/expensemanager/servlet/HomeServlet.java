@@ -17,23 +17,25 @@ import org.slf4j.LoggerFactory;
 public class HomeServlet extends HttpServlet {
 
 	private static final Logger log = LoggerFactory.getLogger(TransactionServlet.class);
-	
-    @Override
-    protected void doGet(HttpServletRequest req, HttpServletResponse resp)
-            throws ServletException, IOException {
-        try {
-            TransactionDAO dao = new TransactionDAO();
-            BigDecimal income  = dao.sumByType("INCOME");
-            BigDecimal expense = dao.sumByType("EXPENSE");
-            List<Transaction> recent = dao.findAll(null, 1, 5);
 
-            req.setAttribute("totalIncome",  income);
-            req.setAttribute("totalExpense", expense);
-            req.setAttribute("balance",      income.subtract(expense));
-            req.setAttribute("recentTxns",   recent);
-        } catch (Exception e) {
-            req.setAttribute("dbError", e.getMessage());
-        }
-        req.getRequestDispatcher("/WEB-INF/views/index.jsp").forward(req, resp);
-    }
+	@Override
+	protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
+
+		int bookId = (Integer) req.getSession().getAttribute("activeBookId");
+		System.out.println("Book ID: "+bookId);
+		try {
+			TransactionDAO dao = new TransactionDAO();
+			BigDecimal income = dao.sumByType("INCOME", bookId);
+			BigDecimal expense = dao.sumByType("EXPENSE", bookId);
+			List<Transaction> recent = dao.findAll(null, 1, 5, bookId);
+
+			req.setAttribute("totalIncome", income);
+			req.setAttribute("totalExpense", expense);
+			req.setAttribute("balance", income.subtract(expense));
+			req.setAttribute("recentTxns", recent);
+		} catch (Exception e) {
+			req.setAttribute("dbError", e.getMessage());
+		}
+		req.getRequestDispatcher("/WEB-INF/views/index.jsp").forward(req, resp);
+	}
 }

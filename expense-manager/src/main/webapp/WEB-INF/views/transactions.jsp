@@ -20,29 +20,30 @@
 </div>
 
 <c:if test="${not empty param.success}">
-  <div class="alert alert-success">✓
+  <div class="alert alert-success">
     <c:choose>
       <c:when test="${param.success=='1'}">Transaction saved successfully!</c:when>
       <c:when test="${param.success=='cat'}">Category added!</c:when>
       <c:when test="${param.success=='col'}">Custom column added!</c:when>
+      <c:otherwise>Done!</c:otherwise>
     </c:choose>
   </div>
 </c:if>
 <c:if test="${not empty param.error}">
-  <div class="alert alert-error">✗ Error: ${param.error}</div>
+  <div class="alert alert-error">Error: ${param.error}</div>
 </c:if>
 <c:if test="${not empty dbError}">
-  <div class="alert alert-error">✗ DB: ${dbError}</div>
+  <div class="alert alert-error">DB Error: ${dbError}</div>
 </c:if>
 
 <!-- Filter tabs -->
 <div class="tabs">
   <a href="${pageContext.request.contextPath}/transactions"
-     class="tab ${empty param.filter?'active':''}">All</a>
+     class="tab ${empty param.filter ? 'active' : ''}">All</a>
   <a href="${pageContext.request.contextPath}/transactions?filter=INCOME"
-     class="tab income ${param.filter=='INCOME'?'active':''}">Income</a>
+     class="tab income ${param.filter == 'INCOME' ? 'active' : ''}">Income</a>
   <a href="${pageContext.request.contextPath}/transactions?filter=EXPENSE"
-     class="tab expense ${param.filter=='EXPENSE'?'active':''}">Expenses</a>
+     class="tab expense ${param.filter == 'EXPENSE' ? 'active' : ''}">Expenses</a>
 </div>
 
 <div class="table-wrap">
@@ -53,36 +54,63 @@
         <th>Date &amp; Time</th>
         <th>Type</th>
         <th>Category</th>
+        <th>Sub Category</th>
         <th>Amount</th>
         <th>Note</th>
-        <c:if test="${not empty param.filter}">
-          <c:forEach var="col" items="${param.filter=='INCOME'?incomeColumns:expenseColumns}">
-            <th>${col.colName}</th>
-          </c:forEach>
-        </c:if>
+        <c:choose>
+          <c:when test="${param.filter == 'INCOME'}">
+            <c:forEach var="col" items="${incomeColumns}">
+              <th>${col.colName}</th>
+            </c:forEach>
+          </c:when>
+          <c:when test="${param.filter == 'EXPENSE'}">
+            <c:forEach var="col" items="${expenseColumns}">
+              <th>${col.colName}</th>
+            </c:forEach>
+          </c:when>
+        </c:choose>
       </tr>
     </thead>
     <tbody>
       <c:forEach var="t" items="${transactions}" varStatus="st">
         <tr>
           <td class="text-muted" style="font-size:.8rem">${total - ((page-1)*15) - st.index}</td>
-          <td class="text-muted" style="font-size:.82rem;white-space:nowrap">
-            <fmt:formatDate value="${t.dateTime}" pattern="dd MMM yy HH:mm"/>
-          </td> 
-          
-          <!-- <td class="text-muted" style="font-size:.82rem;white-space:nowrap"> ${t.formattedDateTime} </td>  --> 
-          
-          <td><span class="badge ${t.type=='INCOME'?'income':'expense'}">${t.type}</span></td>
+          <td class="text-muted" style="font-size:.82rem;white-space:nowrap">${t.formattedDateTime}</td>
+          <td>
+            <c:choose>
+              <c:when test="${t.type == 'INCOME'}">
+                <span class="badge income">INCOME</span>
+              </c:when>
+              <c:otherwise>
+                <span class="badge expense">EXPENSE</span>
+              </c:otherwise>
+            </c:choose>
+          </td>
           <td><span class="chip">${t.categoryName}</span></td>
-          <td class="${t.type=='INCOME'?'amount-pos':'amount-neg'}">
-            ${t.type=='INCOME'?'+':'-'}₹<fmt:formatNumber value="${t.amount}" pattern="#,##0.00"/>
+          <td><span class="chip">${t.subCategoryName}</span></td>
+          <td>
+            <c:choose>
+              <c:when test="${t.type == 'INCOME'}">
+                <span class="amount-pos">+&#8377;${t.amount}</span>
+              </c:when>
+              <c:otherwise>
+                <span class="amount-neg">-&#8377;${t.amount}</span>
+              </c:otherwise>
+            </c:choose>
           </td>
           <td class="text-muted" style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${t.note}</td>
-          <c:if test="${not empty param.filter}">
-            <c:forEach var="col" items="${param.filter=='INCOME'?incomeColumns:expenseColumns}">
-              <td class="text-muted">${t.customValues[col.colKey]}</td>
-            </c:forEach>
-          </c:if>
+          <c:choose>
+            <c:when test="${param.filter == 'INCOME'}">
+              <c:forEach var="col" items="${incomeColumns}">
+                <td class="text-muted">${t.customValues[col.colKey]}</td>
+              </c:forEach>
+            </c:when>
+            <c:when test="${param.filter == 'EXPENSE'}">
+              <c:forEach var="col" items="${expenseColumns}">
+                <td class="text-muted">${t.customValues[col.colKey]}</td>
+              </c:forEach>
+            </c:when>
+          </c:choose>
         </tr>
       </c:forEach>
       <c:if test="${empty transactions}">
@@ -96,8 +124,16 @@
 <c:if test="${totalPages > 1}">
   <div class="pagination mt-2">
     <c:forEach begin="1" end="${totalPages}" var="p">
-      <a href="${pageContext.request.contextPath}/transactions?page=${p}<c:if test="${not empty param.filter}">&filter=${param.filter}</c:if>"
-         class="page-btn ${p==page?'active':''}">${p}</a>
+      <c:choose>
+        <c:when test="${not empty param.filter}">
+          <a href="${pageContext.request.contextPath}/transactions?page=${p}&amp;filter=${param.filter}"
+             class="page-btn ${p == page ? 'active' : ''}">${p}</a>
+        </c:when>
+        <c:otherwise>
+          <a href="${pageContext.request.contextPath}/transactions?page=${p}"
+             class="page-btn ${p == page ? 'active' : ''}">${p}</a>
+        </c:otherwise>
+      </c:choose>
     </c:forEach>
   </div>
 </c:if>

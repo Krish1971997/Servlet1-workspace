@@ -2,6 +2,7 @@ package com.expensemanager.model;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -18,13 +19,27 @@ public class Transaction {
 	private int categoryId;
 	private String categoryName;
 	private String note;
-	// key = col_key, value = display value
+	private int subcategoryid;
+	private String subCategoryName;
+	private int bookId;
 	private Map<String, String> customValues = new LinkedHashMap<>();
 
 	public Transaction() {
 	}
 
-	// ── Getters / Setters ────────────────────────────────
+	public String getFormattedDate() {
+		if (dateTime == null)
+			return "";
+		return dateTime.format(DateTimeFormatter.ofPattern("dd MMM yyyy"));
+	}
+
+	public String getFormattedDateTime() {
+		if (dateTime == null)
+			return "";
+		return dateTime.format(DateTimeFormatter.ofPattern("dd MMM yyyy HH:mm"));
+	}
+
+	// Getters / Setters
 	public int getId() {
 		return id;
 	}
@@ -79,6 +94,30 @@ public class Transaction {
 
 	public void setNote(String note) {
 		this.note = note;
+	}
+
+	public int getSubcategoryid() {
+		return subcategoryid;
+	}
+
+	public void setSubcategoryid(int subcategoryid) {
+		this.subcategoryid = subcategoryid;
+	}
+
+	public String getSubCategoryName() {
+		return subCategoryName;
+	}
+
+	public void setSubCategoryName(String subCategoryName) {
+		this.subCategoryName = subCategoryName;
+	}
+
+	public int getBookId() {
+		return bookId;
+	}
+
+	public void setBookId(int bookId) {
+		this.bookId = bookId;
 	}
 
 	public Map<String, String> getCustomValues() {
