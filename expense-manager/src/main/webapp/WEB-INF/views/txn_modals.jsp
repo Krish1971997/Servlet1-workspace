@@ -3,19 +3,28 @@
 
 <%-- Load data if not already set (called from dashboard) --%>
 <%
-  if (request.getAttribute("incomeCategories") == null) {
-    try {
-      com.expensemanager.dao.CategoryDAO cDao         = new com.expensemanager.dao.CategoryDAO();
-      com.expensemanager.dao.ColumnDefinitionDAO colDao = new com.expensemanager.dao.ColumnDefinitionDAO();
-      com.expensemanager.dao.SubCategoryDAO scDao       = new com.expensemanager.dao.SubCategoryDAO();
-      request.setAttribute("incomeCategories",  cDao.findByType("INCOME"));
-      request.setAttribute("expenseCategories", cDao.findByType("EXPENSE"));
-      request.setAttribute("incomeColumns",     colDao.findByType("INCOME"));
-      request.setAttribute("expenseColumns",    colDao.findByType("EXPENSE"));
-      request.setAttribute("subCategories",     scDao.findAll());
-    } catch (Exception ignored) {}
-  }
+if (request.getAttribute("incomeCategories") == null) {
+	try {
+		com.expensemanager.dao.CategoryDAO cDao = new com.expensemanager.dao.CategoryDAO();
+		com.expensemanager.dao.ColumnDefinitionDAO colDao = new com.expensemanager.dao.ColumnDefinitionDAO();
+		com.expensemanager.dao.SubCategoryDAO scDao = new com.expensemanager.dao.SubCategoryDAO();
+		request.setAttribute("incomeCategories", cDao.findByType("INCOME"));
+		request.setAttribute("expenseCategories", cDao.findByType("EXPENSE"));
+		request.setAttribute("incomeColumns", colDao.findByType("INCOME"));
+		request.setAttribute("expenseColumns", colDao.findByType("EXPENSE"));
+		request.setAttribute("subCategories", scDao.findAll());
+	} catch (Exception ignored) {
+	}
+}
 %>
+
+<c:if test="${not empty param.msg}">
+  <div class="alert alert-success">&#10003; ${param.msg == 'saved' ? 'Transaction Saved!' : 'not saved'}</div>
+</c:if>
+
+<c:if test="${not empty dbError}">
+  <div class="alert alert-error">&#10007; ${dbError}</div>
+</c:if>
 
 <style>
 /* Receipts */
@@ -85,8 +94,9 @@
 			<button class="modal-close" onclick="closeModal('incomeModal')">&#x2715;</button>
 		</div>
 		<form id="incomeForm"
-			action="${pageContext.request.contextPath}/transactions"
-			method="post" enctype="multipart/form-data" onsubmit="return prepareSubmit('incomeForm')">
+			action="${pageContext.request.contextPath}/home"
+			method="post" enctype="multipart/form-data"
+			onsubmit="return prepareSubmit('incomeForm')">
 			<input type="hidden" name="type" value="INCOME">
 			<div class="form-grid">
 				<div class="form-group">
@@ -149,8 +159,8 @@
 
 				<input type="file" id="receiptFile" name="receipt"
 					accept="image/*,application/pdf" onchange="validateFileSize(this)"
-					style="font-size: .82rem; flex: 1" required> 
-				<small id="fileError" style="color: red; display: none;"> File
+					style="font-size: .82rem; flex: 1" > <small
+					id="fileError" style="color: red; display: none;"> File
 					size should not exceed 5 MB. </small>
 			</div>
 
@@ -224,6 +234,31 @@
 					</div>
 				</div>
 			</c:if>
+			
+			<!-- Receipts -->
+			<div class="card mt-2">
+				<div class="flex mb-2">
+					<span class="card-title" style="margin-bottom: 0">&#128248;
+						Receipts &amp; Attachments</span> <span class="text-muted"
+						style="font-size: .75rem; margin-left: .5rem">(max 5 MB
+						each)</span>
+				</div>
+
+
+				<input type="file" id="receiptFile" name="receipt"
+					accept="image/*,application/pdf" onchange="validateFileSize(this)"
+					style="font-size: .82rem; flex: 1" > <small
+					id="fileError" style="color: red; display: none;"> File
+					size should not exceed 5 MB. </small>
+			</div>
+
+			<div id="incExtras"></div>
+			<div class="flex gap-1 mt-2">
+				<!-- <button type="button" class="btn btn-outline btn-sm"
+                onclick="addCustomField('incExtras')">+ Ad-hoc Field</button> -->
+				<button type="submit" class="btn btn-success ml-auto">Save
+					Income</button>
+			</div>
 
 			<div id="expExtras"></div>
 			<div class="flex gap-1 mt-2">
@@ -237,99 +272,106 @@
 </div>
 
 <script>
-// ── Enter key → submit active form ──────────────────────
-document.addEventListener('keydown', function(e) {
-  if (e.key !== 'Enter') return;
-  // Don't intercept textarea or button
-  if (e.target.tagName === 'TEXTAREA' || e.target.tagName === 'BUTTON') return;
+	// ── Enter key → submit active form ──────────────────────
+	document.addEventListener('keydown', function(e) {
+		if (e.key !== 'Enter')
+			return;
+		// Don't intercept textarea or button
+		if (e.target.tagName === 'TEXTAREA' || e.target.tagName === 'BUTTON')
+			return;
 
-  var openModal = document.querySelector('.modal-overlay.open');
-  if (!openModal) return;
+		var openModal = document.querySelector('.modal-overlay.open');
+		if (!openModal)
+			return;
 
-  var form = openModal.querySelector('form');
-  if (form) {
-    e.preventDefault();
-    form.requestSubmit();   // triggers onsubmit + HTML5 validation
-  }
-});
+		var form = openModal.querySelector('form');
+		if (form) {
+			e.preventDefault();
+			form.requestSubmit(); // triggers onsubmit + HTML5 validation
+		}
+	});
 
-// ── Sub-category filter ─────────────────────────────────
-function filterSubCat(prefix) {
-  var catSel = document.getElementById(prefix + 'CategorySelect');
-  var subSel = document.getElementById(prefix + 'SubCatSelect');
-  var selCat = catSel.value;
+	// ── Sub-category filter ─────────────────────────────────
+	function filterSubCat(prefix) {
+		var catSel = document.getElementById(prefix + 'CategorySelect');
+		var subSel = document.getElementById(prefix + 'SubCatSelect');
+		var selCat = catSel.value;
 
-  subSel.value = '';
-  var opts = subSel.querySelectorAll('option[data-cat]');
-  var has  = false;
-  opts.forEach(function(o) {
-    var show = o.getAttribute('data-cat') === selCat;
-    o.style.display = show ? '' : 'none';
-    if (show) has = true;
-  });
-  subSel.disabled = !has;
-}
+		subSel.value = '';
+		var opts = subSel.querySelectorAll('option[data-cat]');
+		var has = false;
+		opts.forEach(function(o) {
+			var show = o.getAttribute('data-cat') === selCat;
+			o.style.display = show ? '' : 'none';
+			if (show)
+				has = true;
+		});
+		subSel.disabled = !has;
+	}
 
-// ── Gather ad-hoc custom fields before submit ───────────
-function prepareSubmit(formId) {
-  var form = document.getElementById(formId);
-  form.querySelectorAll('[name="_cfk"]').forEach(function(kEl, i) {
-    var k = kEl.value.trim();
-    if (!k) return;
-    var vEl = form.querySelectorAll('[name="_cfv"]')[i];
-    var inp = document.createElement('input');
-    inp.type  = 'hidden';
-    inp.name  = 'custom_' + k.toLowerCase().replace(/[^a-z0-9]+/g,'_');
-    inp.value = vEl ? vEl.value : '';
-    form.appendChild(inp);
-  });
-  return true;
-}
+	// ── Gather ad-hoc custom fields before submit ───────────
+	function prepareSubmit(formId) {
+		var form = document.getElementById(formId);
+		form.querySelectorAll('[name="_cfk"]').forEach(function(kEl, i) {
+			var k = kEl.value.trim();
+			if (!k)
+				return;
+			var vEl = form.querySelectorAll('[name="_cfv"]')[i];
+			var inp = document.createElement('input');
+			inp.type = 'hidden';
+			inp.name = 'custom_' + k.toLowerCase().replace(/[^a-z0-9]+/g, '_');
+			inp.value = vEl ? vEl.value : '';
+			form.appendChild(inp);
+		});
+		return true;
+	}
 
-// ── Auto-fill datetime on open ──────────────────────────
-document.addEventListener('DOMContentLoaded', function() {
-  var now   = new Date();
-  var local = new Date(now - now.getTimezoneOffset() * 60000).toISOString().slice(0,16);
-  document.querySelectorAll('input[type="datetime-local"]').forEach(function(el) {
-    if (!el.value) el.value = local;
-  });
-});
+	// ── Auto-fill datetime on open ──────────────────────────
+	document.addEventListener('DOMContentLoaded', function() {
+		var now = new Date();
+		var local = new Date(now - now.getTimezoneOffset() * 60000)
+				.toISOString().slice(0, 16);
+		document.querySelectorAll('input[type="datetime-local"]').forEach(
+				function(el) {
+					if (!el.value)
+						el.value = local;
+				});
+	});
 
-const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5 MB
+	const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5 MB
 
-function validateFileSize(input) {
-    const error = document.getElementById("fileError");
+	function validateFileSize(input) {
+		const error = document.getElementById("fileError");
 
-    if (input.files.length > 0) {
-        const file = input.files[0];
+		if (input.files.length > 0) {
+			const file = input.files[0];
 
-        if (file.size > MAX_FILE_SIZE) {
-            error.style.display = "block";
-            alert("Selected file exceeds 5 MB limit.");
+			if (file.size > MAX_FILE_SIZE) {
+				error.style.display = "block";
+				alert("Selected file exceeds 5 MB limit.");
 
-            input.value = "";
-            return false;
-        }
-    }
+				input.value = "";
+				return false;
+			}
+		}
 
-    error.style.display = "none";
-    return true;
-}
+		error.style.display = "none";
+		return true;
+	}
 
-function validateForm() {
+	function validateForm() {
 
-    const fileInput = document.getElementById("receiptFile");
+		const fileInput = document.getElementById("receiptFile");
 
-    if (fileInput.files.length > 0) {
+		if (fileInput.files.length > 0) {
 
-        if (fileInput.files[0].size > MAX_FILE_SIZE) {
-            alert("File size should not exceed 5 MB.");
-            return false;
-        }
-    }
+			if (fileInput.files[0].size > MAX_FILE_SIZE) {
+				alert("File size should not exceed 5 MB.");
+				return false;
+			}
+		}
 
-    // Existing submit logic
-    return prepareSubmit('incomeForm');
-}
+		// Existing submit logic
+		return prepareSubmit('incomeForm');
+	}
 </script>
-

@@ -1,23 +1,40 @@
 package com.expensemanager.servlet;
 
-import com.expensemanager.dao.*;
-import com.expensemanager.model.*;
-
-import jakarta.servlet.annotation.MultipartConfig;
-import jakarta.servlet.annotation.WebServlet;
-import jakarta.servlet.http.*;
-import jakarta.servlet.*;
-
 import java.io.IOException;
 import java.math.BigDecimal;
-import java.sql.SQLException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.*;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.expensemanager.dao.AuditLogDAO;
+import com.expensemanager.dao.CategoryDAO;
+import com.expensemanager.dao.ColumnDefinitionDAO;
+import com.expensemanager.dao.ReceiptDAO;
+import com.expensemanager.dao.SubCategoryDAO;
+import com.expensemanager.dao.TransactionDAO;
+import com.expensemanager.model.Receipt;
+import com.expensemanager.model.Transaction;
+import com.expensemanager.model.TransactionFilter;
+import com.expensemanager.util.AppContextListener;
+
+import jakarta.servlet.ServletException;
+import jakarta.servlet.annotation.MultipartConfig;
+import jakarta.servlet.annotation.WebServlet;
+import jakarta.servlet.http.HttpServlet;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.Part;
 
 @WebServlet("/transactions")
 @MultipartConfig(maxFileSize = 5_242_880, maxRequestSize = 10_485_760) // 5MB file, 10MB request
 public class TransactionServlet extends HttpServlet {
+
+	private static final Logger log = LoggerFactory.getLogger(TransactionServlet.class);
 
 	@Override
 	protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
@@ -90,7 +107,7 @@ public class TransactionServlet extends HttpServlet {
 		});
 		t.setCustomValues(customs);
 
-		System.out.println("Transaction saving...");
+		log.info("Transaction saving...");
 		int txnId;
 		try {
 			txnId = new TransactionDAO().insert(t);
@@ -100,22 +117,24 @@ public class TransactionServlet extends HttpServlet {
 			if (contentType != null && contentType.toLowerCase().startsWith("multipart/")) {
 
 				Part filePart = req.getPart("receipt");
-				if (filePart != null && filePart.getSize() >= 0) {
-					System.out.println("File uploading...");
+				log.debug("File size : {}",filePart.getSize());
+				if (filePart != null && filePart.getSize() > 0) {
+					log.debug("File uploading...");
 					Receipt r = new Receipt();
 					r.setTransactionId(txnId);
 					r.setFileName(getFileName(filePart));
 					r.setFileType(filePart.getContentType());
 					r.setFileData(filePart.getInputStream().readAllBytes());
 					r.setFileSize((int) filePart.getSize());
-					new AuditLogDAO().logReceiptUpload(txnId, "user", r.getFileName());
+//					new AuditLogDAO().logReceiptUpload(txnId, "user", r.getFileName());
 					new ReceiptDAO().insert(r);
-					System.out.println("File uploaded...");
+					log.debug("File uploaded...");
 				}
 			}
 		} catch (Exception e) {
 			System.out.println("File upload : " + e.getMessage());
 		}
+		resp.sendRedirect(req.getContextPath() + "/home?msg=saved");
 	}
 
 	private String getFileName(Part part) {
