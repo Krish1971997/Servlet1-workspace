@@ -243,7 +243,7 @@ tbody tr.selected {
 	<div>
 		<h1>Transactions</h1>
 		<p>
-			<strong>${sessionScope.activeBookName}</strong> â€” ${total} records
+			<strong>${sessionScope.activeBookName}</strong> ${total} records
 			<c:if test="${filter.filtered}">&nbsp;<span
 					class="filter-badge">&#128269; Filtered</span>
 			</c:if>

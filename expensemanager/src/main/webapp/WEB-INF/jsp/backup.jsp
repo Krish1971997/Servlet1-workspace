@@ -71,7 +71,9 @@
 <li><a href="${pageContext.request.contextPath}/dashboard"><i class="fas fa-chart-pie"></i><span>Dashboard</span></a></li>
 <li><a href="${pageContext.request.contextPath}/income/list"><i class="fas fa-arrow-trend-up"></i><span>Income</span></a></li>
 <li><a href="${pageContext.request.contextPath}/expense/list"><i class="fas fa-arrow-trend-down"></i><span>Expenses</span></a></li>
-<li><a href="${pageContext.request.contextPath}/reports"><i class="fas fa-chart-bar"></i><span>Reports</span></a></li>
+<li><a href="${pageContext.request.contextPath}/budget/list"><i class="fas fa-wallet"></i><span>Budget</span></a></li>
+  <li><a href="${pageContext.request.contextPath}/budget/trends"><i class="fas fa-chart-line"></i><span>Trends</span></a></li>
+  <li><a href="${pageContext.request.contextPath}/reports"><i class="fas fa-chart-bar"></i><span>Reports</span></a></li>
 <li><a href="${pageContext.request.contextPath}/reminders/list"><i class="fas fa-bell"></i><span>Reminders</span></a></li>
         <li><a href="${pageContext.request.contextPath}/backup/list" class="active"><i class="fas fa-database"></i><span>Backup</span></a></li>
 </ul>
