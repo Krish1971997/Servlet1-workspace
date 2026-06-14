@@ -48,7 +48,7 @@
 </div>
 
 <!-- Recent Transactions -->
-<div class="card">
+<%-- <div class="card">
   <div class="flex mb-2">
     <span class="card-title" style="margin-bottom:0">Recent Transactions</span>
     <a href="${pageContext.request.contextPath}/transactions" class="btn btn-outline btn-sm ml-auto">View All &#8594;</a>
@@ -100,7 +100,7 @@
       </tbody>
     </table>
   </div>
-</div>
+</div> --%>
 
 <div class="flex gap-2 mt-3">
   <a href="${pageContext.request.contextPath}/transactions?filter=INCOME"  class="btn btn-outline">View Income &#8594;</a>
@@ -108,5 +108,6 @@
   <a href="${pageContext.request.contextPath}/reports" class="btn btn-primary ml-auto">Analytics &#8594;</a>
 </div>
 
-<%@ include file="txn_modals.jsp" %>
+<%@ include file="transactions_home.jsp" %>
+<%@ include file="header.jsp"%>
 <%@ include file="footer.jsp" %>
