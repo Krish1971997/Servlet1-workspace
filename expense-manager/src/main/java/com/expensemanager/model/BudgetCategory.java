@@ -86,15 +86,6 @@ public class BudgetCategory {
 		return spent.multiply(BigDecimal.valueOf(100)).divide(catLimit, 0, java.math.RoundingMode.HALF_UP)
 				.min(BigDecimal.valueOf(100)).intValue();
 	}
-	
-//	public boolean isRemainingPositive() {
-//	    return remainingAmount != null && remainingAmount.compareTo(BigDecimal.ZERO) >= 0;
-//	}
-//
-//	public String getMonthName() {
-//	    return java.time.Month.of(month).getDisplayName(
-//	        java.time.format.TextStyle.FULL, java.util.Locale.ENGLISH);
-//	}
 
 	public boolean isAlertTriggered() {
 		return getUsedPct() >= alertPct;

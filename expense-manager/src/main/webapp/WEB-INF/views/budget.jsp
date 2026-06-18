@@ -433,7 +433,7 @@ to {
 					<tbody>
 						<c:forEach var="b" items="${allBudgets}">
 							<tr>
-								<td>${b.monthName} ${b.year}</td>
+								<td>${b.monthName}${b.year}</td>
 								<td>&#8377;<fmt:formatNumber value="${b.overallLimit}"
 										pattern="#,##0.00" /></td>
 								<td>&#8377;<fmt:formatNumber
