@@ -534,7 +534,8 @@ tbody tr.selected {
 				<tbody>
 					<c:forEach var="t" items="${transactions}" varStatus="st">
 						<tr class="clickable" id="row-${t.id}"
-							onclick="loadDetail(${t.id}, this)">
+							<%-- onclick="loadDetail(${t.id}, this)"> --%>
+							onclick="window.location='${pageContext.request.contextPath}/transaction?id=${t.id}'">
 							<td class="text-muted" style="font-size: .78rem">${total-((page-1)*15)-st.index}</td>
 							<td style="font-size: .82rem; white-space: nowrap">${t.formattedDateTime}</td>
 							<td><c:choose>

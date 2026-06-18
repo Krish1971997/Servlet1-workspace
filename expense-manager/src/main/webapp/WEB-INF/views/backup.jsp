@@ -313,6 +313,7 @@
 				<th>Size</th>
 				<th>Description</th>
 				<th>Created At</th>
+				<th>Mode</th>
 				<th>Actions</th>
 			</tr>
 		</thead>
@@ -380,6 +381,10 @@
 									<span style="color: var(--text-3)">${b.createdAt.toLocalTime().toString().substring(0,8)}</span>
 								</c:if>
 							</td>
+							<td
+								style="color: var(--text-2); font-size: .82rem; max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap"
+								title="${b.mode}">${not empty b.mode ? b.mode : '—'}
+							</td>
 							<td>
 								<div class="flex gap-1">
 									<c:if test="${b.restorable}">
@@ -425,6 +430,11 @@
 			<div class="form-group">
 				<label>Description (optional)</label> <input type="text"
 					name="description" placeholder="e.g. Before year-end audit…">
+				<label for="syncMode">Sync Mode</label> <select id="syncMode"
+					name="syncMode">
+					<option value="OFFLINE">Offline Sync</option>
+					<option value="ONLINE">Online Sync</option>
+				</select>
 			</div>
 			<div class="flex gap-1 mt-2" style="justify-content: flex-end">
 				<button type="button" class="btn btn-outline"

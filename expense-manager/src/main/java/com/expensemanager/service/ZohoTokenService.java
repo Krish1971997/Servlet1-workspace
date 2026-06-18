@@ -1,15 +1,17 @@
 package com.expensemanager.service;
 
-import org.json.JSONObject;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.io.IOException;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
+
+import org.json.JSONObject;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.expensemanager.util.AppContextListener;
 
 /**
  * Manages Zoho OAuth2 access tokens. Uses refresh_token grant to auto-renew
@@ -28,10 +30,14 @@ public class ZohoTokenService {
 	private volatile String accessToken;
 	private volatile Instant expiresAt = Instant.EPOCH;
 
-	public ZohoTokenService(String clientId, String clientSecret, String refreshToken) {
-		this.clientId = clientId;
-		this.clientSecret = clientSecret;
-		this.refreshToken = refreshToken;
+	public ZohoTokenService() {
+		clientId = AppContextListener.getContext().getInitParameter("zoho.client.id");
+		clientSecret = AppContextListener.getContext().getInitParameter("zoho.client.secret");
+		refreshToken = AppContextListener.getContext().getInitParameter("zoho.refresh.token");
+		
+//		log.debug("Details updated ..{} ",clientId);
+//		this.clientId = "1000.I7L8AIDAW8EIVJ0PW0O84NKMHAXBFV";
+//		this.clientSecret = "1c2192e08af94e368a964ac490624ef803f91f14ab";
 	}
 
 	/**
@@ -71,10 +77,11 @@ public class ZohoTokenService {
 		}
 
 		JSONObject json = new JSONObject(response);
+//		log.debug("refreshAccessToken payload: {}", response);
 		this.accessToken = json.getString("access_token");
 		int expiresIn = json.optInt("expires_in", 3600);
 		this.expiresAt = Instant.now().plusSeconds(expiresIn);
 
-		log.info("Token refreshed. Expires at: {}", expiresAt);
+//		log.info("Token refreshed. Expires at: {}", expiresAt);
 	}
 }
