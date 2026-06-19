@@ -23,6 +23,7 @@ import com.expensemanager.util.DBConnection;
 public class NeonSyncService {
 
 	private static final Logger log = LoggerFactory.getLogger(NeonSyncService.class);
+	private static java.util.Properties neonProps = null;
 
 	// ── Neon connection ────────────────────────────────────────────
 	private Connection neonConn() throws SQLException {
@@ -36,15 +37,49 @@ public class NeonSyncService {
 //		String user = AppContextListener.getContext().getInitParameter("NEON_DB_USER");
 //		String pass = AppContextListener.getContext().getInitParameter("NEON_DB_PASSWORD");
 
-		String url = "jdbc:postgresql://ep-plain-meadow-apr9n2ix-pooler.c-7.us-east-1.aws.neon.tech/neondb?sslmode=require";
-		String user = "neondb_owner";
-		String pass = "npg_30bZIuKdaFvM";
+//		String url = "jdbc:postgresql://ep-plain-meadow-apr9n2ix-pooler.c-7.us-east-1.aws.neon.tech/neondb?sslmode=require";
+//		String user = "neondb_owner";
+//		String pass = "npg_30bZIuKdaFvM";
 
-		if (url.isBlank())
-			throw new SQLException(
-					"Neon DB URL not configured. " + "Set system property 'neon.jdbc.url' or env var 'NEON_DB_URL'.");
+		String url = resolve("neon.jdbc.url", "NEON_DB_URL");
+		String user = resolve("neon.jdbc.user", "NEON_DB_USER");
+		String pass = resolve("neon.jdbc.password", "NEON_DB_PASSWORD");
 
+		if (url == null || url.isBlank())
+			throw new SQLException("Neon DB URL not configured. "
+					+ "Set 'neon.jdbc.url' in neon_config.properties, system property, or env var 'NEON_DB_URL'.");
+
+		log.info("[NeonSync] Connecting to: {}", url.replaceAll("password=[^&]*", "password=***"));
 		return DriverManager.getConnection(url, user, pass);
+	}
+
+	private String resolve(String sysProp, String envVar) {
+		// 1. System property
+		String v = System.getProperty(sysProp);
+		if (v != null && !v.isBlank())
+			return v.trim();
+
+		// 2. Environment variable
+		v = System.getenv(envVar);
+		if (v != null && !v.isBlank())
+			return v.trim();
+
+		// 3. neon_config.properties from classpath
+		if (neonProps == null) {
+			neonProps = new java.util.Properties();
+			try (java.io.InputStream is = getClass().getClassLoader().getResourceAsStream("neon_config.properties")) {
+				if (is != null) {
+					neonProps.load(is);
+					log.info("[NeonSync] Loaded neon_config.properties from classpath");
+				} else {
+					log.warn("[NeonSync] neon_config.properties not found on classpath");
+				}
+			} catch (Exception e) {
+				log.error("[NeonSync] Failed to load neon_config.properties: {}", e.getMessage());
+			}
+		}
+		v = neonProps.getProperty(sysProp);
+		return (v != null) ? v.trim() : "";
 	}
 
 	// ── Main sync entry point ──────────────────────────────────────
@@ -107,68 +142,64 @@ public class NeonSyncService {
 						"INSERT INTO transaction_audit_log (id, transaction_id, action, changed_by, changed_at, field_name, old_value, new_value, note)"
 								+ "	VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)" + " ON CONFLICT (id) DO NOTHING",
 						9));
-				
+
 				result.add(syncTable(local, remote, "transaction_receipts",
 						"SELECT id, transaction_id, file_name, file_type, file_data, file_size, uploaded_at FROM transaction_receipts ",
 						"INSERT INTO transaction_receipts(id, transaction_id, file_name, file_type, file_data, file_size, uploaded_at)"
-						+ "	VALUES (?, ?, ?, ?, ?, ?, ?)" + " ON CONFLICT (id) DO UPDATE SET transaction_id=EXCLUDED.transaction_id, "
+								+ "	VALUES (?, ?, ?, ?, ?, ?, ?)"
+								+ " ON CONFLICT (id) DO UPDATE SET transaction_id=EXCLUDED.transaction_id, "
 								+ "file_name=EXCLUDED.file_name, file_type=EXCLUDED.file_type, file_data=EXCLUDED.file_data, "
 								+ "file_size=EXCLUDED.file_size, uploaded_at=EXCLUDED.uploaded_at",
 						7));
-				
+
 				result.add(syncTable(local, remote, "backup_history",
 						"SELECT id, file_name, file_path, file_size_bytes, backup_type, status, description, error_message, "
-						+ "income_count, expense_count, created_at, completed_at, backupmode, external_id "
-						+ "FROM backup_history ",
+								+ "income_count, expense_count, created_at, completed_at, backupmode, external_id "
+								+ "FROM backup_history ",
 						"INSERT INTO backup_history(id, file_name, file_path, file_size_bytes, backup_type, status, description, error_message, income_count, expense_count, created_at, completed_at, backupmode, external_id) "
-						+ "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)" + " ON CONFLICT (id) "
-						+ "DO UPDATE SET file_name = EXCLUDED.file_name, file_path = EXCLUDED.file_path, "
-						+ "file_size_bytes = EXCLUDED.file_size_bytes, backup_type = EXCLUDED.backup_type, "
-						+ "status = EXCLUDED.status, description = EXCLUDED.description, error_message = EXCLUDED.error_message, "
-						+ "income_count = EXCLUDED.income_count, expense_count = EXCLUDED.expense_count, created_at = EXCLUDED.created_at, "
-						+ "completed_at = EXCLUDED.completed_at, backupmode = EXCLUDED.backupmode, external_id = EXCLUDED.external_id",
+								+ "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)" + " ON CONFLICT (id) "
+								+ "DO UPDATE SET file_name = EXCLUDED.file_name, file_path = EXCLUDED.file_path, "
+								+ "file_size_bytes = EXCLUDED.file_size_bytes, backup_type = EXCLUDED.backup_type, "
+								+ "status = EXCLUDED.status, description = EXCLUDED.description, error_message = EXCLUDED.error_message, "
+								+ "income_count = EXCLUDED.income_count, expense_count = EXCLUDED.expense_count, created_at = EXCLUDED.created_at, "
+								+ "completed_at = EXCLUDED.completed_at, backupmode = EXCLUDED.backupmode, external_id = EXCLUDED.external_id",
 						14));
-				
-				
+
 				result.add(syncTable(local, remote, "budget_categories",
 						"SELECT id, budget_id, category_id, cat_limit, alert_pct FROM budget_categories ",
-						"INSERT INTO budget_categories(id, budget_id, category_id, cat_limit, alert_pct) VALUES (?, ?, ?, ?, ?)"  
-						+" ON CONFLICT (id) DO UPDATE SET budget_id=EXCLUDED.budget_id, "
+						"INSERT INTO budget_categories(id, budget_id, category_id, cat_limit, alert_pct) VALUES (?, ?, ?, ?, ?)"
+								+ " ON CONFLICT (id) DO UPDATE SET budget_id=EXCLUDED.budget_id, "
 								+ "category_id=EXCLUDED.category_id, cat_limit=EXCLUDED.cat_limit, alert_pct=EXCLUDED.alert_pct ",
 						5));
-				
+
 				result.add(syncTable(local, remote, "budgets",
 						"SELECT id, book_id, year, month, overall_limit, created_at, updated_at FROM budgets ",
-						"INSERT INTO budgets(id, book_id, year, month, overall_limit, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)" 
-					   +" ON CONFLICT (id) DO UPDATE SET book_id=EXCLUDED.book_id, "
+						"INSERT INTO budgets(id, book_id, year, month, overall_limit, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)"
+								+ " ON CONFLICT (id) DO UPDATE SET book_id=EXCLUDED.book_id, "
 								+ "year=EXCLUDED.year, month=EXCLUDED.month, overall_limit=EXCLUDED.overall_limit, "
 								+ "created_at=EXCLUDED.created_at, updated_at=EXCLUDED.updated_at",
 						7));
-				
-				
-				
-				
-				
+
 				result.add(syncTable(local, remote, "schedulers",
 						"SELECT id, name, display_name, enabled, repeat_type, repeat_days, run_hour, run_minute, last_run_at, "
-						+ "last_run_status, last_run_msg, next_run_at, created_at, updated_at FROM schedulers ",
+								+ "last_run_status, last_run_msg, next_run_at, created_at, updated_at FROM schedulers ",
 						"INSERT INTO schedulers(id, name, display_name, enabled, repeat_type, repeat_days, run_hour, run_minute, "
-						+ "last_run_at, last_run_status, last_run_msg, next_run_at, created_at, updated_at) "
-						+ "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) " 
-					   +" ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, display_name = EXCLUDED.display_name, "
-					   + "enabled = EXCLUDED.enabled, repeat_type = EXCLUDED.repeat_type, repeat_days = EXCLUDED.repeat_days, "
-					   + "run_hour = EXCLUDED.run_hour, run_minute = EXCLUDED.run_minute, last_run_at = EXCLUDED.last_run_at, "
-					   + "last_run_status = EXCLUDED.last_run_status, last_run_msg = EXCLUDED.last_run_msg, "
-					   + "next_run_at = EXCLUDED.next_run_at, created_at = EXCLUDED.created_at, updated_at = EXCLUDED.updated_at",
+								+ "last_run_at, last_run_status, last_run_msg, next_run_at, created_at, updated_at) "
+								+ "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) "
+								+ " ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, display_name = EXCLUDED.display_name, "
+								+ "enabled = EXCLUDED.enabled, repeat_type = EXCLUDED.repeat_type, repeat_days = EXCLUDED.repeat_days, "
+								+ "run_hour = EXCLUDED.run_hour, run_minute = EXCLUDED.run_minute, last_run_at = EXCLUDED.last_run_at, "
+								+ "last_run_status = EXCLUDED.last_run_status, last_run_msg = EXCLUDED.last_run_msg, "
+								+ "next_run_at = EXCLUDED.next_run_at, created_at = EXCLUDED.created_at, updated_at = EXCLUDED.updated_at",
 						14));
 				result.add(syncTable(local, remote, "scheduler_log",
 						"SELECT id, scheduler_id, started_at, finished_at, status, message, rows_synced FROM scheduler_log ",
-						"INSERT INTO scheduler_log(id, scheduler_id, started_at, finished_at, status, message, rows_synced) VALUES (?, ?, ?, ?, ?, ?, ?)" 
-					   +" ON CONFLICT (id) DO UPDATE SET scheduler_id=EXCLUDED.scheduler_id, "
+						"INSERT INTO scheduler_log(id, scheduler_id, started_at, finished_at, status, message, rows_synced) VALUES (?, ?, ?, ?, ?, ?, ?)"
+								+ " ON CONFLICT (id) DO UPDATE SET scheduler_id=EXCLUDED.scheduler_id, "
 								+ "started_at=EXCLUDED.started_at, finished_at=EXCLUDED.finished_at, status=EXCLUDED.status, "
 								+ "message=EXCLUDED.message, rows_synced=EXCLUDED.rows_synced",
 						7));
-				
+
 				remote.commit();
 				result.success = true;
 				log.info("[NeonSync] Sync complete. Total rows: {}", result.totalRows);
