@@ -127,8 +127,14 @@ public class SchedulerEngine {
 	// ── Execute a specific scheduler ───────────────────────────────
 	private void execute(SchedulerConfig s) {
 		int logId = -1;
+		LocalDateTime oneWeekAgo = LocalDateTime.now().minusDays(7);
+		LocalDateTime lastRun = s.getLastRunAt();
+		log.debug("oneWeekAgo : {} - lastRun : {}",oneWeekAgo, lastRun);
+		LocalDateTime fromDate = lastRun.isBefore(oneWeekAgo) ? lastRun : oneWeekAgo;
+
 		try {
 			logId = dao.logStart(s.getId());
+
 			String result;
 			int rows = 0;
 
@@ -144,8 +150,13 @@ public class SchedulerEngine {
 				result = r[0];
 				rows = Integer.parseInt(r[1]);
 			}
-			case "NEON_SYNC" -> {
-				var sr = runNeonSync();
+			case "NEON_SYNC_PUSH" -> {
+				var sr = runNeonSync(fromDate, true);
+				result = sr.getSummary();
+				rows = sr.totalRows;
+			}
+			case "NEON_SYNC_PULL" -> {
+				var sr = runNeonSync(fromDate, false);
 				result = sr.getSummary();
 				rows = sr.totalRows;
 			}
@@ -180,8 +191,7 @@ public class SchedulerEngine {
 					return new String[] { "Cash book already exists: " + name, "0" };
 			}
 			// Create
-			try (PreparedStatement ps = conn
-					.prepareStatement("INSERT INTO cash_books (name, currency) VALUES (?, 'INR')")) {
+			try (PreparedStatement ps = conn.prepareStatement("INSERT INTO cash_books (name) VALUES (?)")) {
 				ps.setString(1, name);
 				ps.executeUpdate();
 			}
@@ -257,8 +267,8 @@ public class SchedulerEngine {
 	}
 
 	// ── NEON_SYNC ──────────────────────────────────────────────────
-	private NeonSyncService.SyncResult runNeonSync() {
-		return new NeonSyncService().sync();
+	private NeonSyncService.SyncResult runNeonSync(LocalDateTime lastRunAt, Boolean isPush) {
+		return new NeonSyncService().sync(lastRunAt, isPush);
 	}
 
 	// ── Calculate next run time ────────────────────────────────────

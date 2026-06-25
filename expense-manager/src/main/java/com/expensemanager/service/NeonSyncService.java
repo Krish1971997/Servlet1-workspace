@@ -5,12 +5,15 @@ import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Timestamp;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.expensemanager.dao.SchedulerDAO;
 import com.expensemanager.util.DBConnection;
 
 /**
@@ -83,97 +86,121 @@ public class NeonSyncService {
 	}
 
 	// ── Main sync entry point ──────────────────────────────────────
-	public SyncResult sync() {
+	public SyncResult sync(LocalDateTime lastrunAt, Boolean isPush) {
 		SyncResult result = new SyncResult();
 		log.info("[NeonSync] Starting full sync...");
+	    SchedulerDAO dao = new SchedulerDAO();
 
-		try (Connection local = DBConnection.getInstance().getConnection(); Connection remote = neonConn()) {
+//		boolean isPull = false;
+//		try (Connection local = DBConnection.getInstance().getConnection(); Connection remote = neonConn()) {
 
+//		try (Connection local = isPush ? neonConn() : DBConnection.getInstance().getConnection();
+//				Connection remote = isPush ? DBConnection.getInstance().getConnection() : neonConn()) {
+			try (Connection local = isPush ? DBConnection.getInstance().getConnection(): neonConn();
+					Connection remote = isPush ? neonConn(): DBConnection.getInstance().getConnection()) {
 			remote.setAutoCommit(false);
+			
+			log.debug("ispush : {}", false);
+			log.debug("lastrunAt : {}", lastrunAt);
+			log.debug("local : {} - remote : {}", local, remote);
 
 			try {
 				// Master tables first (FK order)
 				result.add(syncTable(local, remote, "cash_books",
-						"SELECT id, name, description, created_at, is_active FROM cash_books",
-						"INSERT INTO cash_books (id, name, description, created_at, is_active) VALUES (?, ?, ?, ?, ?) "
+						"SELECT id, name, description, created_at, is_active, updated_at FROM cash_books where updated_at>= ? ",
+						lastrunAt,
+						"INSERT INTO cash_books (id, name, description, created_at, is_active, updated_at) VALUES (?, ?, ?, ?, ?,?) "
 								+ "ON CONFLICT (id) DO UPDATE SET name=EXCLUDED.name, description = EXCLUDED.description, "
-								+ "created_at = EXCLUDED.created_at,is_active = EXCLUDED.is_active",
-						5));
+								+ "created_at = EXCLUDED.created_at,is_active = EXCLUDED.is_active, updated_at = EXCLUDED.updated_at",
+						6));
 
-				result.add(syncTable(local, remote, "categories", "SELECT id, name, type, created_at FROM categories",
-						"INSERT INTO categories (id, name, type, created_at) VALUES (?,?,?::txn_type, ?) "
+				result.add(syncTable(local, remote, "categories",
+						"SELECT id, name, type, created_at, updated_at FROM categories where updated_at>= ? ",
+						lastrunAt,
+						"INSERT INTO categories (id, name, type, created_at, updated_at) VALUES (?,?,?::txn_type, ?,?) "
 								+ "ON CONFLICT (id) DO UPDATE SET name=EXCLUDED.name , type=EXCLUDED.type, "
-								+ "created_at=EXCLUDED.created_at",
-						4));
+								+ "created_at=EXCLUDED.created_at, updated_at=EXCLUDED.updated_at",
+						5));
 
 				result.add(syncTable(local, remote, "sub_categories",
-						"SELECT sub_categories_id, name, created, category_id FROM sub_categories",
-						"INSERT INTO sub_categories (sub_categories_id, name, created, category_id) VALUES (?,?,?,?) "
+						"SELECT sub_categories_id, name, created, category_id, created_at, updated_at FROM sub_categories where updated_at>= ? ",
+						lastrunAt,
+						"INSERT INTO sub_categories (sub_categories_id, name, created, category_id, created_at, updated_at) VALUES (?,?,?,?,?,?) "
 								+ "ON CONFLICT (sub_categories_id) DO UPDATE SET name=EXCLUDED.name, "
-								+ "created=EXCLUDED.created, category_id=EXCLUDED.category_id",
-						4));
+								+ "created=EXCLUDED.created, category_id=EXCLUDED.category_id, created_at=EXCLUDED.created_at, updated_at=EXCLUDED.updated_at",
+						6));
 
 				result.add(syncTable(local, remote, "column_definitions",
-						"SELECT id, type, col_key, col_name FROM column_definitions",
-						"INSERT INTO column_definitions (id, col_name, col_key, type, created_at) VALUES (?, ?, ?, ?::txn_type, ?) "
+						"SELECT id, type, col_key, col_name, created_at, updated_at FROM column_definitions where updated_at>= ? ",
+						lastrunAt,
+						"INSERT INTO column_definitions (id, col_name, col_key, type, created_at, updated_at) VALUES (?, ?, ?, ?::txn_type, ?,?) "
 								+ "ON CONFLICT (id) DO UPDATE SET col_name=EXCLUDED.col_name, "
-								+ "col_key=EXCLUDED.col_key, type=EXCLUDED.type, created_at=EXCLUDED.created_at",
-						5));
+								+ "col_key=EXCLUDED.col_key, type=EXCLUDED.type, created_at=EXCLUDED.created_at, updated_at=EXCLUDED.updated_at",
+						7));
 
 				// Transactions
 				result.add(syncTable(local, remote, "transactions",
-						"SELECT id, type, txn_datetime, amount, category_id, note, created_at, sub_categories_id, book_id FROM transactions",
-						"INSERT INTO transactions (id, type, txn_datetime, amount, category_id, note, created_at, sub_categories_id, book_id) "
-								+ "VALUES (?, ?::txn_type, ?, ?, ?, ?, ?, ?, ?)"
+						"SELECT id, type, txn_datetime, amount, category_id, note, created_at, updated_at, sub_categories_id, book_id FROM transactions where updated_at>= ? ",
+						lastrunAt,
+						"INSERT INTO transactions (id, type, txn_datetime, amount, category_id, note, created_at, updated_at, sub_categories_id, book_id) "
+								+ "VALUES (?, ?::txn_type, ?, ?, ?, ?, ?, ?, ?, ?)"
 								+ "ON CONFLICT (id) DO UPDATE SET type=EXCLUDED.type, txn_datetime=EXCLUDED.txn_datetime, "
 								+ "amount=EXCLUDED.amount, category_id=EXCLUDED.category_id, "
-								+ "  note=EXCLUDED.note, created_at=EXCLUDED.created_at, "
+								+ "  note=EXCLUDED.note, created_at=EXCLUDED.created_at, updated_at=EXCLUDED.updated_at,  "
 								+ "sub_categories_id=EXCLUDED.sub_categories_id, book_id=EXCLUDED.book_id",
-						9));
+						10));
 
 				result.add(syncTable(local, remote, "transaction_custom_values",
-						"SELECT id, transaction_id, col_def_id, value FROM transaction_custom_values",
-						"INSERT INTO transaction_custom_values (id, transaction_id, col_def_id, value) "
-								+ "VALUES (?,?,?,?) ON CONFLICT (id) DO UPDATE SET transaction_id=EXCLUDED.transaction_id, col_def_id=EXCLUDED.col_def_id, value=EXCLUDED.value",
-						4));
+						"SELECT id, transaction_id, col_def_id, value, created_at, updated_at FROM transaction_custom_values where updated_at>= ? ",
+						lastrunAt,
+						"INSERT INTO transaction_custom_values (id, transaction_id, col_def_id, value, created_at, updated_at) "
+								+ "VALUES (?,?,?,?) ON CONFLICT (id) DO UPDATE SET transaction_id=EXCLUDED.transaction_id, col_def_id=EXCLUDED.col_def_id, value=EXCLUDED.value,"
+								+ " created_at=EXCLUDED.created_at, updated_at=EXCLUDED.updated_at",
+						6));
 
 				result.add(syncTable(local, remote, "transaction_audit_log",
-						"SELECT id, transaction_id, action, changed_by, changed_at, field_name, old_value, new_value, note FROM transaction_audit_log ",
-						"INSERT INTO transaction_audit_log (id, transaction_id, action, changed_by, changed_at, field_name, old_value, new_value, note)"
-								+ "	VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)" + " ON CONFLICT (id) DO NOTHING",
-						9));
+						"SELECT id, transaction_id, action, changed_by, changed_at, field_name, old_value, new_value, note, created_at, updated_at  FROM transaction_audit_log where updated_at>= ? ",
+						lastrunAt,
+						"INSERT INTO transaction_audit_log (id, transaction_id, action, changed_by, changed_at, field_name, old_value, new_value, note, created_at, updated_at)"
+								+ "	VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?,?,?)" + " ON CONFLICT (id) DO NOTHING",
+						11));
 
 				result.add(syncTable(local, remote, "transaction_receipts",
-						"SELECT id, transaction_id, file_name, file_type, file_data, file_size, uploaded_at FROM transaction_receipts ",
-						"INSERT INTO transaction_receipts(id, transaction_id, file_name, file_type, file_data, file_size, uploaded_at)"
-								+ "	VALUES (?, ?, ?, ?, ?, ?, ?)"
+						"SELECT id, transaction_id, file_name, file_type, file_data, file_size, uploaded_at, created_at, updated_at FROM transaction_receipts where updated_at>= ? ",
+						lastrunAt,
+						"INSERT INTO transaction_receipts(id, transaction_id, file_name, file_type, file_data, file_size, uploaded_at, created_at, updated_at)"
+								+ "	VALUES (?, ?, ?, ?, ?, ?, ?,?,?)"
 								+ " ON CONFLICT (id) DO UPDATE SET transaction_id=EXCLUDED.transaction_id, "
 								+ "file_name=EXCLUDED.file_name, file_type=EXCLUDED.file_type, file_data=EXCLUDED.file_data, "
-								+ "file_size=EXCLUDED.file_size, uploaded_at=EXCLUDED.uploaded_at",
-						7));
+								+ "file_size=EXCLUDED.file_size, uploaded_at=EXCLUDED.uploaded_at, created_at=EXCLUDED.created_at, updated_at=EXCLUDED.updated_at",
+						9));
 
 				result.add(syncTable(local, remote, "backup_history",
 						"SELECT id, file_name, file_path, file_size_bytes, backup_type, status, description, error_message, "
-								+ "income_count, expense_count, created_at, completed_at, backupmode, external_id "
-								+ "FROM backup_history ",
-						"INSERT INTO backup_history(id, file_name, file_path, file_size_bytes, backup_type, status, description, error_message, income_count, expense_count, created_at, completed_at, backupmode, external_id) "
-								+ "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)" + " ON CONFLICT (id) "
+								+ "income_count, expense_count, created_at, completed_at, backupmode, external_id, updated_at "
+								+ "FROM backup_history where updated_at>= ? ",
+						lastrunAt,
+						"INSERT INTO backup_history(id, file_name, file_path, file_size_bytes, backup_type, status, description, error_message, income_count,"
+								+ " expense_count, created_at, completed_at, backupmode, external_id, updated_at) "
+								+ "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)" + " ON CONFLICT (id) "
 								+ "DO UPDATE SET file_name = EXCLUDED.file_name, file_path = EXCLUDED.file_path, "
 								+ "file_size_bytes = EXCLUDED.file_size_bytes, backup_type = EXCLUDED.backup_type, "
 								+ "status = EXCLUDED.status, description = EXCLUDED.description, error_message = EXCLUDED.error_message, "
 								+ "income_count = EXCLUDED.income_count, expense_count = EXCLUDED.expense_count, created_at = EXCLUDED.created_at, "
-								+ "completed_at = EXCLUDED.completed_at, backupmode = EXCLUDED.backupmode, external_id = EXCLUDED.external_id",
-						14));
+								+ "completed_at = EXCLUDED.completed_at, backupmode = EXCLUDED.backupmode, external_id = EXCLUDED.external_id, updated_at=EXCLUDED.updated_at",
+						15));
 
 				result.add(syncTable(local, remote, "budget_categories",
-						"SELECT id, budget_id, category_id, cat_limit, alert_pct FROM budget_categories ",
-						"INSERT INTO budget_categories(id, budget_id, category_id, cat_limit, alert_pct) VALUES (?, ?, ?, ?, ?)"
+						"SELECT id, budget_id, category_id, cat_limit, alert_pct, created_at, updated_at FROM budget_categories where updated_at>= ? ",
+						lastrunAt,
+						"INSERT INTO budget_categories(id, budget_id, category_id, cat_limit, alert_pct, created_at, updated_at) VALUES (?, ?, ?, ?, ?,?,?)"
 								+ " ON CONFLICT (id) DO UPDATE SET budget_id=EXCLUDED.budget_id, "
-								+ "category_id=EXCLUDED.category_id, cat_limit=EXCLUDED.cat_limit, alert_pct=EXCLUDED.alert_pct ",
-						5));
+								+ "category_id=EXCLUDED.category_id, cat_limit=EXCLUDED.cat_limit, alert_pct=EXCLUDED.alert_pct , created_at=EXCLUDED.created_at, updated_at=EXCLUDED.updated_at",
+						7));
 
 				result.add(syncTable(local, remote, "budgets",
-						"SELECT id, book_id, year, month, overall_limit, created_at, updated_at FROM budgets ",
+						"SELECT id, book_id, year, month, overall_limit, created_at, updated_at FROM budgets where updated_at>= ? ",
+						lastrunAt,
 						"INSERT INTO budgets(id, book_id, year, month, overall_limit, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)"
 								+ " ON CONFLICT (id) DO UPDATE SET book_id=EXCLUDED.book_id, "
 								+ "year=EXCLUDED.year, month=EXCLUDED.month, overall_limit=EXCLUDED.overall_limit, "
@@ -182,7 +209,8 @@ public class NeonSyncService {
 
 				result.add(syncTable(local, remote, "schedulers",
 						"SELECT id, name, display_name, enabled, repeat_type, repeat_days, run_hour, run_minute, last_run_at, "
-								+ "last_run_status, last_run_msg, next_run_at, created_at, updated_at FROM schedulers ",
+								+ "last_run_status, last_run_msg, next_run_at, created_at, updated_at FROM schedulers where updated_at>= ? ",
+						lastrunAt,
 						"INSERT INTO schedulers(id, name, display_name, enabled, repeat_type, repeat_days, run_hour, run_minute, "
 								+ "last_run_at, last_run_status, last_run_msg, next_run_at, created_at, updated_at) "
 								+ "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) "
@@ -193,14 +221,15 @@ public class NeonSyncService {
 								+ "next_run_at = EXCLUDED.next_run_at, created_at = EXCLUDED.created_at, updated_at = EXCLUDED.updated_at",
 						14));
 				result.add(syncTable(local, remote, "scheduler_log",
-						"SELECT id, scheduler_id, started_at, finished_at, status, message, rows_synced FROM scheduler_log ",
-						"INSERT INTO scheduler_log(id, scheduler_id, started_at, finished_at, status, message, rows_synced) VALUES (?, ?, ?, ?, ?, ?, ?)"
+						"SELECT id, scheduler_id, started_at, finished_at, status, message, rows_synced, created_at, updated_at FROM scheduler_log where updated_at>= ? ",
+						lastrunAt,
+						"INSERT INTO scheduler_log(id, scheduler_id, started_at, finished_at, status, message, rows_synced, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?,?,?)"
 								+ " ON CONFLICT (id) DO UPDATE SET scheduler_id=EXCLUDED.scheduler_id, "
 								+ "started_at=EXCLUDED.started_at, finished_at=EXCLUDED.finished_at, status=EXCLUDED.status, "
-								+ "message=EXCLUDED.message, rows_synced=EXCLUDED.rows_synced",
-						7));
-
+								+ "message=EXCLUDED.message, rows_synced=EXCLUDED.rows_synced, created_at = EXCLUDED.created_at, updated_at = EXCLUDED.updated_at",
+						9));
 				remote.commit();
+				dao.resetSeq(isPush ? remote : local);
 				result.success = true;
 				log.info("[NeonSync] Sync complete. Total rows: {}", result.totalRows);
 
@@ -222,13 +251,16 @@ public class NeonSyncService {
 
 	// ── Generic table sync ─────────────────────────────────────────
 	private TableResult syncTable(Connection local, Connection remote, String tableName, String selectSql,
-			String upsertSql, int colCount) {
+			LocalDateTime lastrunAt, String upsertSql, int colCount) {
 		TableResult tr = new TableResult(tableName);
 		log.debug("[NeonSync] Syncing table: {}", tableName);
 		try (PreparedStatement sel = local.prepareStatement(selectSql);
 				PreparedStatement ups = remote.prepareStatement(upsertSql)) {
 
+			sel.setTimestamp(1, Timestamp.valueOf(lastrunAt));
+
 			ResultSet rs = sel.executeQuery();
+//			log.debug("syncTable result : table {} {}", tableName, rs.next());
 			int batch = 0;
 			while (rs.next()) {
 				for (int i = 1; i <= colCount; i++) {
