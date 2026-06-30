@@ -186,6 +186,18 @@ public class SchedulerDAO {
 			db.releaseConnection(conn);
 		}
 	}
+	
+//	public void insertscheduler() throws SQLException {
+//		String sql = "INSERT INTO schedulers VALUES (5, 'NEON_SYNC_PULL', 'Neon DB Cloud Syn - Pull data', true, 'DAILY', NULL, 21, 0, '2026-06-25 21:14:58.394468', 'RUNNING', null, '2026-06-26 21:00:00', now(), now());";
+//		Connection conn = db.getConnection();
+//		try (PreparedStatement ps = conn.prepareStatement(sql)) {
+//			ps.executeUpdate();
+//		} finally {
+//			db.releaseConnection(conn);
+//		}
+//	}
+	
+	
 
 	private SchedulerConfig mapConfig(ResultSet rs) throws SQLException {
 		SchedulerConfig s = new SchedulerConfig();

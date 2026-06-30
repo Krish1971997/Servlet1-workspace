@@ -42,6 +42,7 @@ public class SchedulerServlet extends HttpServlet {
 		List<SchedulerLog> logs = null;
 		int totalLogs = 0;
 		try {
+//			dao.insertscheduler();
 			logs = dao.allRecentLogs(pageSize, offset);
 			totalLogs = dao.countAllLogs(); // total count
 		} catch (SQLException e) {
@@ -153,4 +154,4 @@ public class SchedulerServlet extends HttpServlet {
 		};
 	}
 }
-//INSERT INTO schedulers VALUES (5, 'NEON_SYNC_PULL', 'Neon DB Cloud Syn - Pull data', true, 'DAILY', NULL, 21, 0, '2026-06-25 21:14:58.394468', 'RUNNING', null, '2026-06-26 21:00:00', now(), now());
+//

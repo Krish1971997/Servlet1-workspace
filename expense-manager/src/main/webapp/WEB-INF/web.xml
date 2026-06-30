@@ -27,15 +27,6 @@
 	</context-param>
 
 	<context-param>
-		<param-name>backup.schedule.hour</param-name>
-		<param-value>13</param-value>
-	</context-param>
-	<context-param>
-		<param-name>backup.schedule.minute</param-name>
-		<param-value>53</param-value>
-	</context-param>
-
-	<context-param>
 		<param-name>DB_URL</param-name>
 		<param-value>jdbc:postgresql://localhost/mydb</param-value>
 	</context-param>
@@ -46,7 +37,7 @@
 	<context-param>
 		<param-name>DB_PASSWORD</param-name>
 		<param-value>postgres</param-value>
-	</context-param>
+	</context-param> 
 	
 	<!-- Gmail Config — ADD to web.xml context-params section -->
 	<context-param>
