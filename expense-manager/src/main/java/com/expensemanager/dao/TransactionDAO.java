@@ -19,6 +19,9 @@ public class TransactionDAO {
 
 	private static final DateTimeFormatter DT_FMT = DateTimeFormatter.ofPattern("dd MMM yyyy HH:mm");
 
+	private static final Map<String, String> SORT_COLUMNS = Map.of("date", "t.txn_datetime", "type", "t.type",
+			"category", "c.name", "subcategory", "sc.name", "amount", "t.amount", "note", "t.note");
+
 	// ── INSERT ────────────────────────────────────────────
 	public int insert(Transaction t) throws SQLException {
 		String sql = """
@@ -108,15 +111,45 @@ public class TransactionDAO {
 	}
 
 	// ── DELETE ────────────────────────────────────────────
+	// Also writes a tombstone to deleted_records so NeonSyncService can
+	// propagate this delete on the next sync (a plain DELETE leaves no
+	// trace for an "updated_at >= ?" sync query to find).
 	public void delete(int id) throws SQLException {
 		auditDAO.logDelete(id, "user");
-		String sql = "DELETE FROM transactions WHERE id = ?";
 		Connection conn = db.getConnection();
-		try (PreparedStatement ps = conn.prepareStatement(sql)) {
-			ps.setInt(1, id);
-			ps.executeUpdate();
+		boolean prevAutoCommit = true;
+		try {
+			prevAutoCommit = conn.getAutoCommit();
+			conn.setAutoCommit(false);
+
+			try (PreparedStatement ps = conn.prepareStatement("DELETE FROM transactions WHERE id = ?")) {
+				ps.setInt(1, id);
+				ps.executeUpdate();
+			}
+			recordTombstone(conn, "transactions", id);
+
+			conn.commit();
+		} catch (SQLException e) {
+			conn.rollback();
+			throw e;
 		} finally {
+			conn.setAutoCommit(prevAutoCommit);
 			db.releaseConnection(conn);
+		}
+	}
+
+	// ── Tombstone helper — shared by every DAO's delete() so
+	// NeonSyncService can find & propagate deletions. ──────
+	private void recordTombstone(Connection conn, String tableName, int recordId) throws SQLException {
+		String sql = """
+				INSERT INTO deleted_records (table_name, record_id, deleted_at)
+				VALUES (?, ?, NOW())
+				ON CONFLICT (table_name, record_id) DO UPDATE SET deleted_at = EXCLUDED.deleted_at
+				""";
+		try (PreparedStatement ps = conn.prepareStatement(sql)) {
+			ps.setString(1, tableName);
+			ps.setInt(2, recordId);
+			ps.executeUpdate();
 		}
 	}
 
@@ -133,6 +166,48 @@ public class TransactionDAO {
 				return t;
 			}
 			return null;
+		} finally {
+			db.releaseConnection(conn);
+		}
+	}
+
+	// ── ADJACENT (Prev/Next) — for the transaction detail page ────
+	// "Prev" = one row NEWER (up) in the same order the list uses
+	// (txn_datetime DESC, id DESC as a tiebreaker for equal timestamps).
+	// "Next" = one row OLDER (down). Scoped to the same book only —
+	// does not currently account for an active list filter.
+	public Integer findPrevId(int id, int bookId) throws SQLException {
+		return findAdjacentId(id, bookId, true);
+	}
+
+	public Integer findNextId(int id, int bookId) throws SQLException {
+		return findAdjacentId(id, bookId, false);
+	}
+
+	private Integer findAdjacentId(int id, int bookId, boolean newer) throws SQLException {
+		Connection conn = db.getConnection();
+		try {
+			Timestamp curTs;
+			try (PreparedStatement ps = conn.prepareStatement("SELECT txn_datetime FROM transactions WHERE id = ?")) {
+				ps.setInt(1, id);
+				ResultSet rs = ps.executeQuery();
+				if (!rs.next())
+					return null;
+				curTs = rs.getTimestamp("txn_datetime");
+			}
+
+			String sql = newer
+					? "SELECT id FROM transactions WHERE book_id = ? AND (txn_datetime > ? OR (txn_datetime = ? AND id > ?)) ORDER BY txn_datetime ASC, id ASC LIMIT 1"
+					: "SELECT id FROM transactions WHERE book_id = ? AND (txn_datetime < ? OR (txn_datetime = ? AND id < ?)) ORDER BY txn_datetime DESC, id DESC LIMIT 1";
+
+			try (PreparedStatement ps = conn.prepareStatement(sql)) {
+				ps.setInt(1, bookId);
+				ps.setTimestamp(2, curTs);
+				ps.setTimestamp(3, curTs);
+				ps.setInt(4, id);
+				ResultSet rs = ps.executeQuery();
+				return rs.next() ? rs.getInt("id") : null;
+			}
 		} finally {
 			db.releaseConnection(conn);
 		}
@@ -578,25 +653,49 @@ public class TransactionDAO {
 		}
 		// Note + custom field ILIKE
 		if (f.getNoteSearch() != null && !f.getNoteSearch().isBlank()) {
-			String like = "%" + f.getNoteSearch().trim() + "%";
-			sql.append("""
-					 AND (t.note ILIKE ?
-					      OR EXISTS (
-					        SELECT 1 FROM transaction_custom_values tcv
-					        WHERE tcv.transaction_id = t.id AND tcv.value ILIKE ?
-					      ))
-					""");
-			params.add(like);
-			params.add(like);
+
+			String[] split = f.getNoteSearch().split(";");
+
+//			log.debug("split words count : {}", split.length);
+//			log.debug("split words : {}", Arrays.toString(split));
+
+			if (split.length > 0)
+				sql.append(" AND (");
+
+			for (int i = 0; i < split.length; i++) {
+				String searchWord = split[i].trim();
+				String like = "%" + searchWord + "%";
+				if (i > 0)
+					sql.append(" OR ");
+
+				sql.append("""
+						 (t.note ILIKE ?
+						      OR EXISTS (
+						        SELECT 1 FROM transaction_custom_values tcv
+						        WHERE tcv.transaction_id = t.id AND tcv.value ILIKE ?
+						      ))
+						""");
+				params.add(like);
+				params.add(like);
+			}
+
+			sql.append(" )");
+
 		}
 		if (!countOnly) {
-			sql.append(" ORDER BY t.txn_datetime DESC");
+			String col = resolveSortColumn(f.getSortBy());
+			String dir = "asc".equalsIgnoreCase(f.getSortDir()) ? "ASC" : "DESC";
+			sql.append(" ORDER BY ").append(col).append(" ").append(dir).append(", t.id ").append(dir); 
+			// tiebreaker for equal values
 			if (f.getPageSize() < Integer.MAX_VALUE) {
 				sql.append(" LIMIT ? OFFSET ?");
 				params.add(f.getPageSize());
 				params.add((f.getPage() - 1) * f.getPageSize());
 			}
 		}
+
+//		log.debug("params : {}", params);
+//		log.debug("sql : {}", sql.toString());
 		return new BuildResult(sql.toString(), params);
 	}
 
@@ -684,6 +783,10 @@ public class TransactionDAO {
 
 	private String nvl(String s) {
 		return s != null ? s : "";
+	}
+
+	private String resolveSortColumn(String key) {
+		return SORT_COLUMNS.getOrDefault(key, "t.txn_datetime");
 	}
 
 }

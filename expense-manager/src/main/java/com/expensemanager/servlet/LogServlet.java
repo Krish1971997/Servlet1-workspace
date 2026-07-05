@@ -24,7 +24,7 @@ import jakarta.servlet.http.HttpServletResponse;
  * GET /log → HTML log viewer page GET /log/stream → SSE stream of log lines
  * (real-time) POST /log/clear → clear in-memory buffer
  */
-@WebServlet(urlPatterns = { "/log", "/log/stream", "/log/clear" })
+@WebServlet(urlPatterns = { "/log", "/log/stream", "/log/clear" }, loadOnStartup = 1)
 public class LogServlet extends HttpServlet {
 
 	// ── In-memory ring buffer (last 500 lines) ─────────────────────
@@ -45,6 +45,8 @@ public class LogServlet extends HttpServlet {
 	@Override
 	public void init() throws ServletException {
 		// ── 1. Logback appender ────────────────────────────────────
+		System.out.println("LogServlet init() called at " + new java.util.Date());
+		
 		LoggerContext ctx = (LoggerContext) LoggerFactory.getILoggerFactory();
 		appender = new InMemoryAppender();
 		appender.setContext(ctx);

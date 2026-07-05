@@ -623,14 +623,18 @@ if (request.getAttribute("incomeCategories") == null) {
 		}
 
 		document.querySelectorAll('#incCategorySelect option.cat-opt-INCOME')
-				.forEach(function(o) {
-					o.style.display = isIncome ? '' : 'none';
-				});
-		document.querySelectorAll('#incCategorySelect option.cat-opt-EXPENSE')
-				.forEach(function(o) {
-					o.style.display = isIncome ? 'none' : '';
-				});
-		document.getElementById('incCategorySelect').value = '';
+	    .forEach(function(o) {
+	        o.style.display = isIncome ? '' : 'none';
+	        o.disabled = !isIncome;
+	        o.hidden   = !isIncome;
+	    });
+	document.querySelectorAll('#incCategorySelect option.cat-opt-EXPENSE')
+	    .forEach(function(o) {
+	        o.style.display = isIncome ? 'none' : '';
+	        o.disabled = isIncome;
+	        o.hidden   = isIncome;
+	    });
+	document.getElementById('incCategorySelect').value = '';
 
 		var subSel = document.getElementById('incSubCatSelect');
 		subSel.value = '';
@@ -654,21 +658,22 @@ if (request.getAttribute("incomeCategories") == null) {
 
 	// ── Sub-category filter ─────────────────────────────────
 	function filterSubCat(prefix) {
-		var catSel = document.getElementById(prefix + 'CategorySelect');
-		var subSel = document.getElementById(prefix + 'SubCatSelect');
-		var selCat = catSel.value;
+    var catSel = document.getElementById(prefix + 'CategorySelect');
+    var subSel = document.getElementById(prefix + 'SubCatSelect');
+    var selCat = catSel.value;
 
-		subSel.value = '';
-		var opts = subSel.querySelectorAll('option[data-cat]');
-		var has = false;
-		opts.forEach(function(o) {
-			var show = o.getAttribute('data-cat') === selCat;
-			o.style.display = show ? '' : 'none';
-			if (show)
-				has = true;
-		});
-		subSel.disabled = !has;
-	}
+    subSel.value = '';
+    var opts = subSel.querySelectorAll('option[data-cat]');
+    var has = false;
+    opts.forEach(function(o) {
+        var show = o.getAttribute('data-cat') === selCat;
+        o.style.display = show ? '' : 'none';
+        o.disabled = !show;   // ← add
+        o.hidden   = !show;   // ← add (extra safety)
+        if (show) has = true;
+    });
+    subSel.disabled = !has;
+}
 
 	// ── Gather custom_ fields before submit ─────────────────
 	function prepareSubmit(formId) {
@@ -715,13 +720,18 @@ if (request.getAttribute("incomeCategories") == null) {
 
             showTxnMsg('Transaction saved!', 'success');
 
-            if (typeof loadSummary === 'function') loadSummary();
+            refreshBackgroundData();
 
             if (mode === 'continue') {
                 form.reset();
 
-                // Restore only the date
+                // Restore the date & time (both the hidden combined field
+                // AND the visible date input, which form.reset() clears
+                // back to its empty "dd/mm/yyyy" placeholder state)
                 form.querySelector('[name="dateTime"]').value = snapshot.dateTime;
+                if (snapshot.dateTime) {
+                    document.getElementById('txnDate').value = snapshot.dateTime.split('T')[0];
+                }
 
                 // Reset subcategory dropdown
                 var subSel = document.getElementById('incSubCatSelect');
@@ -744,6 +754,22 @@ if (request.getAttribute("incomeCategories") == null) {
                                 .toISOString().slice(0, 16);
                 form.querySelector('[name="dateTime"]').value = local;
 
+                // form.reset() also blanks the visible date input back to
+                // its "dd/mm/yyyy" placeholder — restore it to today
+                document.getElementById('txnDate').value = local.split('T')[0];
+
+                // Reset the clock-picker trigger label + internal state to "now"
+                var h24 = now.getHours();
+                cpAmPm = h24 >= 12 ? 'PM' : 'AM';
+                cpHour = h24 % 12 || 12;
+                cpMin  = Math.round(now.getMinutes() / 5) * 5;
+                if (cpMin === 60) cpMin = 55;
+                document.getElementById('cpAM').classList.toggle('active', cpAmPm === 'AM');
+                document.getElementById('cpPM').classList.toggle('active', cpAmPm === 'PM');
+                var hh = cpHour < 10 ? '0' + cpHour : cpHour;
+                var mm = cpMin  < 10 ? '0' + cpMin  : cpMin;
+                document.getElementById('clockDisplayTrigger').textContent = hh + ':' + mm + ' ' + cpAmPm;
+
                 var subSel = document.getElementById('incSubCatSelect');
                 subSel.value = '';
                 subSel.disabled = true;
@@ -758,6 +784,31 @@ if (request.getAttribute("incomeCategories") == null) {
             showTxnMsg('Save failed: ' + err.message, 'error');
         });
 }
+
+	// ── Refresh dashboard/list data behind the modal ────────
+	// Re-fetches the current page in the background and swaps in the
+	// updated stats cards + transaction table, without closing the
+	// modal or doing a disruptive full page reload.
+	function refreshBackgroundData() {
+		fetch(window.location.href, { credentials: 'same-origin' })
+			.then(function(resp) { return resp.text(); })
+			.then(function(html) {
+				var doc = new DOMParser().parseFromString(html, 'text/html');
+				['.stats-grid', '.table-wrap', '.pagination'].forEach(function(sel) {
+					var oldEl = document.querySelector(sel);
+					var newEl = doc.querySelector(sel);
+					if (oldEl && newEl) {
+						oldEl.outerHTML = newEl.outerHTML;
+					} else if (oldEl && !newEl) {
+						// e.g. pagination disappeared because only 1 page now
+						oldEl.remove();
+					}
+				});
+			})
+			.catch(function(err) {
+				console.error('Background refresh failed:', err);
+			});
+	}
 
 	// ── Inline status message inside modal ──────────────────
 	function showTxnMsg(msg, type) {
@@ -786,7 +837,7 @@ if (request.getAttribute("incomeCategories") == null) {
     var openModalEl = document.querySelector('.modal-overlay.open');
     if (!openModalEl) return;
     e.preventDefault();
-    submitTxn('save');
+    submitTxn(e.shiftKey ? 'continue' : 'save');
 });
 
 	// ── Auto-fill datetime on load ───────────────────────────

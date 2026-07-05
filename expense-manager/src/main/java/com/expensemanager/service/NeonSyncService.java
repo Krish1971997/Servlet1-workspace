@@ -8,7 +8,9 @@ import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -27,6 +29,22 @@ public class NeonSyncService {
 
 	private static final Logger log = LoggerFactory.getLogger(NeonSyncService.class);
 	private static java.util.Properties neonProps = null;
+
+	// ── Tables covered by delete propagation, and their PK column.
+	// (audit log / backup history / schedulers / scheduler log are
+	// append-only / not user-deletable, so they're left out.)
+	private static final Map<String, String> DELETE_SYNCED_TABLES = new LinkedHashMap<>();
+	static {
+		DELETE_SYNCED_TABLES.put("transaction_receipts", "id");
+		DELETE_SYNCED_TABLES.put("transaction_custom_values", "id");
+		DELETE_SYNCED_TABLES.put("transactions", "id");
+		DELETE_SYNCED_TABLES.put("budget_categories", "id");
+		DELETE_SYNCED_TABLES.put("budgets", "id");
+		DELETE_SYNCED_TABLES.put("sub_categories", "sub_categories_id");
+		DELETE_SYNCED_TABLES.put("column_definitions", "id");
+		DELETE_SYNCED_TABLES.put("categories", "id");
+		DELETE_SYNCED_TABLES.put("cash_books", "id");
+	}
 
 	// ── Neon connection ────────────────────────────────────────────
 	private Connection neonConn() throws SQLException {
@@ -89,17 +107,17 @@ public class NeonSyncService {
 	public SyncResult sync(LocalDateTime lastrunAt, Boolean isPush) {
 		SyncResult result = new SyncResult();
 		log.info("[NeonSync] Starting full sync...");
-	    SchedulerDAO dao = new SchedulerDAO();
+		SchedulerDAO dao = new SchedulerDAO();
 
 //		boolean isPull = false;
 //		try (Connection local = DBConnection.getInstance().getConnection(); Connection remote = neonConn()) {
 
 //		try (Connection local = isPush ? neonConn() : DBConnection.getInstance().getConnection();
 //				Connection remote = isPush ? DBConnection.getInstance().getConnection() : neonConn()) {
-			try (Connection local = isPush ? DBConnection.getInstance().getConnection(): neonConn();
-					Connection remote = isPush ? neonConn(): DBConnection.getInstance().getConnection()) {
+		try (Connection local = isPush ? DBConnection.getInstance().getConnection() : neonConn();
+				Connection remote = isPush ? neonConn() : DBConnection.getInstance().getConnection()) {
 			remote.setAutoCommit(false);
-			
+
 			log.debug("ispush : {}", false);
 			log.debug("lastrunAt : {}", lastrunAt);
 			log.debug("local : {} - remote : {}", local, remote);
@@ -115,12 +133,12 @@ public class NeonSyncService {
 						6));
 
 				result.add(syncTable(local, remote, "categories",
-						"SELECT id, name, type, created_at, updated_at FROM categories where updated_at>= ? ",
+						"SELECT id, name, type, created_at, updated_at, book_id FROM categories where updated_at>= ? ",
 						lastrunAt,
-						"INSERT INTO categories (id, name, type, created_at, updated_at) VALUES (?,?,?::txn_type, ?,?) "
+						"INSERT INTO categories (id, name, type, created_at, updated_at, book_id) VALUES (?,?,?::txn_type, ?,?,?) "
 								+ "ON CONFLICT (id) DO UPDATE SET name=EXCLUDED.name , type=EXCLUDED.type, "
-								+ "created_at=EXCLUDED.created_at, updated_at=EXCLUDED.updated_at",
-						5));
+								+ "created_at=EXCLUDED.created_at, updated_at=EXCLUDED.updated_at, book_id=EXCLUDED.book_id",
+						6));
 
 				result.add(syncTable(local, remote, "sub_categories",
 						"SELECT sub_categories_id, name, created, category_id, created_at, updated_at FROM sub_categories where updated_at>= ? ",
@@ -190,14 +208,6 @@ public class NeonSyncService {
 								+ "completed_at = EXCLUDED.completed_at, backupmode = EXCLUDED.backupmode, external_id = EXCLUDED.external_id, updated_at=EXCLUDED.updated_at",
 						15));
 
-				result.add(syncTable(local, remote, "budget_categories",
-						"SELECT id, budget_id, category_id, cat_limit, alert_pct, created_at, updated_at FROM budget_categories where updated_at>= ? ",
-						lastrunAt,
-						"INSERT INTO budget_categories(id, budget_id, category_id, cat_limit, alert_pct, created_at, updated_at) VALUES (?, ?, ?, ?, ?,?,?)"
-								+ " ON CONFLICT (id) DO UPDATE SET budget_id=EXCLUDED.budget_id, "
-								+ "category_id=EXCLUDED.category_id, cat_limit=EXCLUDED.cat_limit, alert_pct=EXCLUDED.alert_pct , created_at=EXCLUDED.created_at, updated_at=EXCLUDED.updated_at",
-						7));
-
 				result.add(syncTable(local, remote, "budgets",
 						"SELECT id, book_id, year, month, overall_limit, created_at, updated_at FROM budgets where updated_at>= ? ",
 						lastrunAt,
@@ -205,6 +215,14 @@ public class NeonSyncService {
 								+ " ON CONFLICT (id) DO UPDATE SET book_id=EXCLUDED.book_id, "
 								+ "year=EXCLUDED.year, month=EXCLUDED.month, overall_limit=EXCLUDED.overall_limit, "
 								+ "created_at=EXCLUDED.created_at, updated_at=EXCLUDED.updated_at",
+						7));
+
+				result.add(syncTable(local, remote, "budget_categories",
+						"SELECT id, budget_id, category_id, cat_limit, alert_pct, created_at, updated_at FROM budget_categories where updated_at>= ? ",
+						lastrunAt,
+						"INSERT INTO budget_categories(id, budget_id, category_id, cat_limit, alert_pct, created_at, updated_at) VALUES (?, ?, ?, ?, ?,?,?)"
+								+ " ON CONFLICT (id) DO UPDATE SET budget_id=EXCLUDED.budget_id, "
+								+ "category_id=EXCLUDED.category_id, cat_limit=EXCLUDED.cat_limit, alert_pct=EXCLUDED.alert_pct , created_at=EXCLUDED.created_at, updated_at=EXCLUDED.updated_at",
 						7));
 
 				result.add(syncTable(local, remote, "schedulers",
@@ -228,10 +246,17 @@ public class NeonSyncService {
 								+ "started_at=EXCLUDED.started_at, finished_at=EXCLUDED.finished_at, status=EXCLUDED.status, "
 								+ "message=EXCLUDED.message, rows_synced=EXCLUDED.rows_synced, created_at = EXCLUDED.created_at, updated_at = EXCLUDED.updated_at",
 						9));
+
+				// ── Deletions — propagate any local delete(s) recorded as
+				// tombstones since the last sync. Runs AFTER the upserts
+				// above so a row that was edited then deleted within the
+				// same window ends up deleted (delete wins).
+				result.deletedRows = syncDeletes(local, remote, lastrunAt);
+
 				remote.commit();
 				dao.resetSeq(isPush ? remote : local);
 				result.success = true;
-				log.info("[NeonSync] Sync complete. Total rows: {}", result.totalRows);
+				log.info("[NeonSync] Sync complete. Total rows: {}, deleted: {}", result.totalRows, result.deletedRows);
 
 			} catch (Exception ex) {
 				remote.rollback();
@@ -286,11 +311,70 @@ public class NeonSyncService {
 		return tr;
 	}
 
+	// ── Delete propagation ───────────────────────────────────────
+	// Reads tombstones written by DAO delete() calls (see
+	// deleted_records.sql) on the SOURCE side since lastrunAt, issues
+	// the matching DELETE on the DESTINATION side, and copies the
+	// tombstone itself over too — so both DBs agree on what's gone
+	// and a later sync in either direction won't resurrect the row.
+	private int syncDeletes(Connection source, Connection dest, LocalDateTime lastrunAt) throws SQLException {
+		int totalDeleted = 0;
+		String selSql = "SELECT record_id, deleted_at FROM deleted_records WHERE table_name = ? AND deleted_at >= ?";
+		String tombstoneUpsert = """
+				INSERT INTO deleted_records (table_name, record_id, deleted_at)
+				VALUES (?, ?, ?)
+				ON CONFLICT (table_name, record_id) DO UPDATE SET deleted_at = EXCLUDED.deleted_at
+				""";
+
+		for (Map.Entry<String, String> e : DELETE_SYNCED_TABLES.entrySet()) {
+			String table = e.getKey();
+			String pkCol = e.getValue();
+			String delSql = "DELETE FROM " + table + " WHERE " + pkCol + " = ?";
+
+			try (PreparedStatement sel = source.prepareStatement(selSql);
+					PreparedStatement del = dest.prepareStatement(delSql);
+					PreparedStatement tomb = dest.prepareStatement(tombstoneUpsert)) {
+
+				sel.setString(1, table);
+				sel.setTimestamp(2, Timestamp.valueOf(lastrunAt));
+
+				ResultSet rs = sel.executeQuery();
+				int batch = 0;
+				while (rs.next()) {
+					int recordId = rs.getInt("record_id");
+					Timestamp deletedAt = rs.getTimestamp("deleted_at");
+
+					del.setInt(1, recordId);
+					del.addBatch();
+
+					tomb.setString(1, table);
+					tomb.setInt(2, recordId);
+					tomb.setTimestamp(3, deletedAt);
+					tomb.addBatch();
+
+					batch++;
+				}
+				if (batch > 0) {
+					del.executeBatch();
+					tomb.executeBatch();
+					log.debug("[NeonSync] {} → {} deletion(s) propagated", table, batch);
+				}
+				totalDeleted += batch;
+
+			} catch (SQLException ex) {
+				log.error("[NeonSync] Error propagating deletes for {}: {}", table, ex.getMessage());
+				throw ex;
+			}
+		}
+		return totalDeleted;
+	}
+
 	// ── Result classes ─────────────────────────────────────────────
 	public static class SyncResult {
 		public boolean success = false;
 		public String error;
 		public int totalRows = 0;
+		public int deletedRows = 0;
 		public List<TableResult> tables = new ArrayList<>();
 
 		public void add(TableResult tr) {
@@ -304,6 +388,8 @@ public class NeonSyncService {
 			StringBuilder sb = new StringBuilder("Synced: ");
 			for (TableResult t : tables)
 				sb.append(t.table).append("(").append(t.rows).append(") ");
+			if (deletedRows > 0)
+				sb.append("| deleted(").append(deletedRows).append(")");
 			return sb.toString().trim();
 		}
 	}
