@@ -5,6 +5,8 @@
 <c:set var="activePage" value="home" scope="request" />
 <c:set var="currentYear" value="<%=java.time.Year.now().getValue()%>"
 	scope="request" />
+<c:set var="todayStr" value="<%=java.time.LocalDate.now().toString()%>"
+	scope="page" />
 <%@ include file="header.jsp"%>
 
 <style>
@@ -473,11 +475,11 @@ tbody tr.selected {
 				style="grid-template-columns: repeat(auto-fit, minmax(165px, 1fr))">
 				<div class="form-group">
 					<label>Date From</label> <input type="date" name="dateFrom"
-						value="${filter.dateFrom}">
+						value="${empty filter.dateFrom ? todayStr : filter.dateFrom}">
 				</div>
 				<div class="form-group">
 					<label>Date To</label> <input type="date" name="dateTo"
-						value="${filter.dateTo}">
+						value="${empty filter.dateTo ? todayStr : filter.dateTo}">
 				</div>
 
 				<%-- Multi-select: Category --%>
