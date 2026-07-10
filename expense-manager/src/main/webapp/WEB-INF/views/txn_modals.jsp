@@ -311,7 +311,7 @@ if (request.getAttribute("incomeCategories") == null) {
 
 					<div class="clock-trigger-row">
 						<input type="time" id="txnTimeInput" tabindex="3" required
-							class="clock-trigger-input"
+							step="60" class="clock-trigger-input"
 							oninput="onTimeInputChange(this.value)">
 						<button type="button" class="clock-icon-btn" tabindex="-1"
 							onclick="openClockPicker()" aria-label="Open clock picker">&#128336;</button>
@@ -777,7 +777,25 @@ if (request.getAttribute("incomeCategories") == null) {
                 // back to its empty "dd/mm/yyyy" placeholder state)
                 form.querySelector('[name="dateTime"]').value = snapshot.dateTime;
                 if (snapshot.dateTime) {
-                    document.getElementById('txnDate').value = snapshot.dateTime.split('T')[0];
+                    var snapParts = snapshot.dateTime.split('T');
+                    document.getElementById('txnDate').value = snapParts[0];
+
+                    // form.reset() also blanks the visible time input back to
+                    // its "--:--:-- --" placeholder — restore it too, and
+                    // keep the analog clock picker's internal state in sync
+                    if (snapParts[1]) {
+                        document.getElementById('txnTimeInput').value = snapParts[1].slice(0, 5);
+                        var tParts = snapParts[1].split(':');
+                        var h24s = parseInt(tParts[0], 10);
+                        var mins = parseInt(tParts[1], 10);
+                        if (!isNaN(h24s) && !isNaN(mins)) {
+                            cpAmPm = h24s >= 12 ? 'PM' : 'AM';
+                            cpHour = h24s % 12 || 12;
+                            cpMin  = mins;
+                            document.getElementById('cpAM').classList.toggle('active', cpAmPm === 'AM');
+                            document.getElementById('cpPM').classList.toggle('active', cpAmPm === 'PM');
+                        }
+                    }
                 }
 
                 // Reset subcategory dropdown

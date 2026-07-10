@@ -29,9 +29,13 @@ import com.expensemanager.util.DBConnection;
 public class SchedulerEngine {
 
 	private static final Logger log = LoggerFactory.getLogger(SchedulerEngine.class);
+
 	private static SchedulerEngine INSTANCE;
 	private ScheduledExecutorService executor;
 	private final SchedulerDAO dao = new SchedulerDAO();
+	private final java.util.Set<Integer> runningNow = java.util.concurrent.ConcurrentHashMap.newKeySet();
+
+	private volatile boolean started = false;
 
 	public static synchronized SchedulerEngine getInstance() {
 		if (INSTANCE == null)
@@ -40,19 +44,26 @@ public class SchedulerEngine {
 	}
 
 	// ── Start polling every 60 seconds ─────────────────────────────
-	public void start() {
+
+	public synchronized void start() {
+		if (started) {
+			log.warn("[SchedulerEngine] start() called again — ignoring (already running)");
+			return;
+		}
 		executor = Executors.newSingleThreadScheduledExecutor(r -> {
 			Thread t = new Thread(r, "SchedulerEngine");
 			t.setDaemon(true);
 			return t;
 		});
 		executor.scheduleAtFixedRate(this::tick, 10, 60, TimeUnit.SECONDS);
+		started = true;
 		log.info("[SchedulerEngine] Started — polling every 60s");
 	}
 
-	public void stop() {
+	public synchronized void stop() {
 		if (executor != null)
 			executor.shutdownNow();
+		started = false;
 		log.info("[SchedulerEngine] Stopped");
 	}
 
@@ -76,30 +87,30 @@ public class SchedulerEngine {
 
 	// ── Check if scheduler is due ──────────────────────────────────
 	private boolean isDue(SchedulerConfig s, LocalDateTime now) {
-	    // Use next_run_at if available
-	    if (s.getNextRunAt() != null) {
-	        return !now.isBefore(s.getNextRunAt());
-	    }
+		// Use next_run_at if available
+		if (s.getNextRunAt() != null) {
+			return !now.isBefore(s.getNextRunAt());
+		}
 
-	    LocalTime nowTime = now.toLocalTime();
+		LocalTime nowTime = now.toLocalTime();
 
-	    // HOURLY: ignore run_hour, match only run_minute (runs every hour)
-	    if ("HOURLY".equals(s.getRepeatType())) {
-	        int diffSec = Math.abs(nowTime.getMinute() * 60 - s.getRunMinute() * 60);
-	        return diffSec <= 90;
-	    }
+		// HOURLY: ignore run_hour, match only run_minute (runs every hour)
+		if ("HOURLY".equals(s.getRepeatType())) {
+			int diffSec = Math.abs(nowTime.getMinute() * 60 - s.getRunMinute() * 60);
+			return diffSec <= 90;
+		}
 
-	    // Fallback: time-of-day match
-	    LocalTime runTime = LocalTime.of(s.getRunHour(), s.getRunMinute());
-	    if (Math.abs(nowTime.toSecondOfDay() - runTime.toSecondOfDay()) > 90)
-	        return false;
+		// Fallback: time-of-day match
+		LocalTime runTime = LocalTime.of(s.getRunHour(), s.getRunMinute());
+		if (Math.abs(nowTime.toSecondOfDay() - runTime.toSecondOfDay()) > 90)
+			return false;
 
-	    return switch (s.getRepeatType()) {
-	    case "DAILY" -> true;
-	    case "WEEKLY" -> isWeekDay(s.getRepeatDays(), now);
-	    case "MONTHLY" -> isMonthDay(s.getRepeatDays(), now);
-	    default -> false;
-	    };
+		return switch (s.getRepeatType()) {
+		case "DAILY" -> true;
+		case "WEEKLY" -> isWeekDay(s.getRepeatDays(), now);
+		case "MONTHLY" -> isMonthDay(s.getRepeatDays(), now);
+		default -> false;
+		};
 	}
 
 	private boolean isWeekDay(String days, LocalDateTime now) {
@@ -134,6 +145,11 @@ public class SchedulerEngine {
 
 	// ── Execute a specific scheduler ───────────────────────────────
 	private void execute(SchedulerConfig s) {
+		if (!runningNow.add(s.getId())) {
+			log.warn("[SchedulerEngine] {} already running — skip", s.getName());
+			return;
+		}
+
 		int logId = -1;
 		LocalDateTime oneWeekAgo = null;
 		LocalDateTime lastRun = null;
@@ -209,6 +225,8 @@ public class SchedulerEngine {
 			} catch (Exception ignored) {
 				log.info("[SchedulerEngine] - ex Exception: {}", ignored.getMessage());
 			}
+		} finally {
+			runningNow.remove(s.getId());
 		}
 	}
 
@@ -309,35 +327,31 @@ public class SchedulerEngine {
 
 	// ── Calculate next run time ────────────────────────────────────
 	private LocalDateTime calcNextRun(SchedulerConfig s) {
-	    LocalDate today = LocalDate.now();
-	    LocalTime runTime = LocalTime.of(s.getRunHour(), s.getRunMinute());
+		LocalDate today = LocalDate.now();
+		LocalTime runTime = LocalTime.of(s.getRunHour(), s.getRunMinute());
 
-	    return switch (s.getRepeatType()) {
-	    case "HOURLY" -> LocalDateTime.now()
-	            .plusHours(1)
-	            .withMinute(s.getRunMinute())
-	            .withSecond(0)
-	            .withNano(0);
-	    case "DAILY" -> LocalDateTime.of(today.plusDays(1), runTime);
-	    case "WEEKLY" -> {
-	        LocalDate d = today.plusDays(1);
-	        for (int i = 0; i < 7; i++, d = d.plusDays(1)) {
-	            String day = d.getDayOfWeek().name().substring(0, 3);
-	            if (s.getRepeatDays() != null && s.getRepeatDays().toUpperCase().contains(day))
-	                yield LocalDateTime.of(d, runTime);
-	        }
-	        yield LocalDateTime.of(today.plusDays(7), runTime);
-	    }
-	    case "MONTHLY" -> {
-	        int dom = 1;
-	        try {
-	            dom = Integer.parseInt(s.getRepeatDays().trim());
-	        } catch (Exception ignored) {
-	        }
-	        LocalDate next = today.plusMonths(1).withDayOfMonth(dom);
-	        yield LocalDateTime.of(next, runTime);
-	    }
-	    default -> LocalDateTime.of(today.plusDays(1), runTime);
-	    };
+		return switch (s.getRepeatType()) {
+		case "HOURLY" -> LocalDateTime.now().plusHours(1).withMinute(s.getRunMinute()).withSecond(0).withNano(0);
+		case "DAILY" -> LocalDateTime.of(today.plusDays(1), runTime);
+		case "WEEKLY" -> {
+			LocalDate d = today.plusDays(1);
+			for (int i = 0; i < 7; i++, d = d.plusDays(1)) {
+				String day = d.getDayOfWeek().name().substring(0, 3);
+				if (s.getRepeatDays() != null && s.getRepeatDays().toUpperCase().contains(day))
+					yield LocalDateTime.of(d, runTime);
+			}
+			yield LocalDateTime.of(today.plusDays(7), runTime);
+		}
+		case "MONTHLY" -> {
+			int dom = 1;
+			try {
+				dom = Integer.parseInt(s.getRepeatDays().trim());
+			} catch (Exception ignored) {
+			}
+			LocalDate next = today.plusMonths(1).withDayOfMonth(dom);
+			yield LocalDateTime.of(next, runTime);
+		}
+		default -> LocalDateTime.of(today.plusDays(1), runTime);
+		};
 	}
 }
