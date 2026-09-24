@@ -2,8 +2,6 @@
 <%@ taglib prefix="c" uri="jakarta.tags.core"%>
 <c:set var="pageTitle" value="Application Log" scope="request" />
 <c:set var="activePage" value="log" scope="request" />
-<c:set var="currentYear" value="<%=java.time.Year.now().getValue()%>"
-	scope="request" />
 <%@ include file="header.jsp"%>
 
 <style>
@@ -61,11 +59,14 @@
 	color: #94a3b8;
 }
 
+.log-line.SEVERE {
+	color: #f87171;
+}
+
 .log-line:hover {
 	background: rgba(255, 255, 255, .04);
 }
 
-/* Filter highlight */
 .log-line.hidden {
 	display: none;
 }
@@ -77,7 +78,6 @@
 	padding: 0 1px;
 }
 
-/* Status dot */
 .status-dot {
 	width: 8px;
 	height: 8px;
@@ -101,7 +101,6 @@
 	color: var(--text-2);
 }
 
-/* Level filter buttons */
 .level-btns {
 	display: flex;
 	gap: .3rem;
@@ -190,6 +189,7 @@
 		id="autoScrollBtn" onclick="toggleAutoScroll()">&#8595;
 		Auto-scroll ON</button>
 
+	<%-- isELIgnored இல்லாம் normal EL use பண்றோம் --%>
 	<form method="post"
 		action="${pageContext.request.contextPath}/log/clear"
 		style="margin-left: auto">
@@ -206,83 +206,92 @@
 </div>
 
 <script>
-const CTX       = '${pageContext.request.contextPath}';
-const logWrap   = document.getElementById('logWrap');
-const statusDot = document.getElementById('statusDot');
-const countEl   = document.getElementById('lineCount');
+// ── CTX: scriptlet use பண்றோம் — EL/template literal conflict இல்லை ──
+var CTX      = '<%=request.getContextPath()%>';
+var logWrap  = document.getElementById('logWrap');
+var statusDot= document.getElementById('statusDot');
+var countEl  = document.getElementById('lineCount');
 
-let autoScroll   = true;
-let totalLines   = 0;
-let hiddenLevels = new Set();
-let searchTerm   = '';
+var autoScroll   = true;
+var totalLines   = 0;
+var hiddenLevels = new Set();
+var searchTerm   = '';
+var es           = null; // ← single variable, everywhere same name
 
 // ── SSE connection ─────────────────────────────────────
 function connect() {
-  const es = new EventSource(CTX + '/log/stream');
+  es = new EventSource(CTX + '/log/stream'); // ✅ CTX, es — same variable
 
-  es.onopen = () => {
+  es.onopen = function() {
     statusDot.className = 'status-dot connected';
     statusDot.title     = 'Connected';
   };
 
-  es.onmessage = (e) => {
+  es.onmessage = function(e) {
     appendLine(e.data);
   };
 
-  es.onerror = () => {
+  es.onerror = function() {
     statusDot.className = 'status-dot error';
-    statusDot.title     = 'Disconnected — reconnecting&#8230;';
+    statusDot.title     = 'Disconnected — reconnecting...';
     es.close();
-    setTimeout(connect, 3000); // auto-reconnect
+    setTimeout(connect, 3000);
   };
 }
 
 // ── Append a log line to the UI ────────────────────────
 function appendLine(text) {
-  // Detect level from line  e.g. "12:34:56 INFO  [http-nio...] ..."
   var level = 'INFO';
-  var m = text.match(/^\d{2}:\d{2}:\d{2} (ERROR|WARN |WARN|INFO |INFO|DEBUG|TRACE)/);
+  var m = text.match(/^\d{2}:\d{2}:\d{2} (ERROR|SEVERE|WARN |WARN|INFO |INFO|DEBUG|TRACE)/);
   if (m) level = m[1].trim();
+  if (level === 'SEVERE') level = 'ERROR'; // Tomcat SEVERE → ERROR color
 
   var span = document.createElement('span');
-  span.className = 'log-line ' + level;
+  span.className     = 'log-line ' + level;
   span.dataset.level = level;
   span.dataset.raw   = text;
+  span.innerHTML     = highlight(escapeHtml(text), searchTerm);
 
-  // Apply current search highlight
-  span.innerHTML = highlight(escapeHtml(text), searchTerm);
-
-  // Apply current level filter
   if (hiddenLevels.has(level)) span.classList.add('hidden');
 
-  // First line: clear placeholder
   if (totalLines === 0) logWrap.innerHTML = '';
 
   logWrap.appendChild(span);
   totalLines++;
   countEl.textContent = totalLines + ' lines';
 
-  // Keep max 500 DOM lines (trim old ones)
   var lines = logWrap.querySelectorAll('.log-line');
   if (lines.length > 500) lines[0].remove();
 
   if (autoScroll) logWrap.scrollTop = logWrap.scrollHeight;
 }
 
-// ── HTML escape ────────────────────────────────────────
 function escapeHtml(s) {
   return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
 
-// ── Highlight search term ──────────────────────────────
 function highlight(html, term) {
   if (!term) return html;
-  var re = new RegExp('(' + escapeRegex(term) + ')', 'gi');
+  // escapeRegex — no template literals, plain string concat
+  var escaped = term
+    .replace(/\\/g, '\\\\')
+    .replace(/\./g, '\\.')
+    .replace(/\*/g, '\\*')
+    .replace(/\+/g, '\\+')
+    .replace(/\?/g, '\\?')
+    .replace(/\^/g, '\\^')
+    .replace(/\$/g, '\\$')
+    .replace(/\{/g, '\\{')
+    .replace(/\}/g, '\\}')
+    .replace(/\(/g, '\\(')
+    .replace(/\)/g, '\\)')
+    .replace(/\|/g, '\\|')
+    .replace(/\[/g, '\\[')
+    .replace(/\]/g, '\\]');
+  var re = new RegExp('(' + escaped + ')', 'gi');
   return html.replace(re, '<span class="hl">$1</span>');
 }
-function escapeRegex(s) { return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
 
-// ── Level toggle ───────────────────────────────────────
 function toggleLevel(level, btn) {
   if (hiddenLevels.has(level)) {
     hiddenLevels.delete(level);
@@ -291,45 +300,39 @@ function toggleLevel(level, btn) {
     hiddenLevels.add(level);
     btn.classList.replace('active', 'inactive');
   }
-  // Show/hide matching lines
   logWrap.querySelectorAll('.log-line[data-level="' + level + '"]').forEach(function(el) {
     el.classList.toggle('hidden', hiddenLevels.has(level));
   });
 }
 
-// ── Search / filter ────────────────────────────────────
 function applySearch(val) {
   searchTerm = val.trim();
   logWrap.querySelectorAll('.log-line').forEach(function(el) {
-    var raw = el.dataset.raw || '';
-    var lv  = el.dataset.level || 'INFO';
+    var raw = el.dataset.raw  || '';
+    var lv  = el.dataset.level|| 'INFO';
     var matchesLevel  = !hiddenLevels.has(lv);
-    var matchesSearch = !searchTerm || raw.toLowerCase().includes(searchTerm.toLowerCase());
+    var matchesSearch = !searchTerm || raw.toLowerCase().indexOf(searchTerm.toLowerCase()) >= 0;
     el.classList.toggle('hidden', !(matchesLevel && matchesSearch));
-    // Re-highlight
     if (matchesLevel && matchesSearch) {
       el.innerHTML = highlight(escapeHtml(raw), searchTerm);
     }
   });
 }
 
-// ── Auto-scroll toggle ─────────────────────────────────
 function toggleAutoScroll() {
   autoScroll = !autoScroll;
   document.getElementById('autoScrollBtn').textContent =
-    (autoScroll ? '↓ Auto-scroll ON' : '↓ Auto-scroll OFF');
+    (autoScroll ? '\u2193 Auto-scroll ON' : '\u2193 Auto-scroll OFF');
 }
 
-// Manual scroll up → disable auto-scroll
 logWrap.addEventListener('scroll', function() {
   var atBottom = logWrap.scrollHeight - logWrap.scrollTop - logWrap.clientHeight < 40;
   if (!atBottom && autoScroll) {
     autoScroll = false;
-    document.getElementById('autoScrollBtn').textContent = '↓ Auto-scroll OFF';
+    document.getElementById('autoScrollBtn').textContent = '\u2193 Auto-scroll OFF';
   }
 });
 
-// ── Start ──────────────────────────────────────────────
 connect();
 </script>
 

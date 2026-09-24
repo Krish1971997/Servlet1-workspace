@@ -86,4 +86,10 @@ public class SchedulerLog {
 	public void setRowsSynced(int rowsSynced) {
 		this.rowsSynced = rowsSynced;
 	}
+
+	public String getStartedAtDisplay() {
+		if (startedAt == null)
+			return "-";
+		return startedAt.format(java.time.format.DateTimeFormatter.ofPattern("dd MMM, hh:mm:ss.SS a"));
+	}
 }

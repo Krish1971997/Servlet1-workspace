@@ -35,7 +35,6 @@ public class FilesApiService {
 
 	FilesApiService() {
 		FOLDERID = AppContextListener.getContext().getInitParameter("workdrive.folder.id");
-//		FOLDERID = "40p8hd98b5756f2c84539a3f51d502ce71a51";
 	}
 
 	public String UploadFile(File file) {

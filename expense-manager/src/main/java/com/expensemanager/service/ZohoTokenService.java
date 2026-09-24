@@ -36,8 +36,6 @@ public class ZohoTokenService {
 		refreshToken = AppContextListener.getContext().getInitParameter("zoho.refresh.token");
 		
 //		log.debug("Details updated ..{} ",clientId);
-//		this.clientId = "1000.I7L8AIDAW8EIVJ0PW0O84NKMHAXBFV";
-//		this.clientSecret = "1c2192e08af94e368a964ac490624ef803f91f14ab";
 	}
 
 	/**

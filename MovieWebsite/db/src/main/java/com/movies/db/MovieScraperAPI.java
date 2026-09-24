@@ -1,20 +1,22 @@
 package com.movies.db;
 
+import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.sql.Connection;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.sql.Statement;
 import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Scanner;
+import java.util.Set;
 
 import org.apache.poi.common.usermodel.HyperlinkType;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.CellStyle;
 import org.apache.poi.ss.usermodel.CreationHelper;
+import org.apache.poi.ss.usermodel.DataFormatter;
 import org.apache.poi.ss.usermodel.Font;
 import org.apache.poi.ss.usermodel.IndexedColors;
 import org.apache.poi.ss.usermodel.Row;
@@ -31,42 +33,124 @@ public class MovieScraperAPI {
 
 	private static List<Movie> movieList = new ArrayList<>();
 	private static String BASE_URL = null; // "https://moviesda16.com/";
-	private static final String[] SUBCATEGORIES = { "/tamil-2026-movies/", "/tamil-2025-movies/", "/tamil-2024-movies/",
-			"/tamil-2023-movies/", "/tamil-2022-movies/", "/tamil-2021-movies/", "/tamil-2020-movies/",
-			"/tamil-2019-movies/", "/tamil-2018-movies/", "/tamil-2017-movies/", "/tamil-2016-movies/",
-			"/tamil-2015-movies/", "/tamil-2012-movies/", "/tamil-hd-movies-download/",
-			"/thala-ajith-movies-collection-download/", "/mgr-movies-collection-download/",
-			"/madhavan-movies-collection-download/", "/arjun-movies-collection-download/",
-			"/jiiva-movies-collection-download/", "/jayam-ravi-movies-collection-download/",
-			"/vishal-movies-collection-download/", "/silambarasan-movies-collection-download/",
-			"/vijay-sethupathi-movies-collection-download/", "/dhanush-movies-collection-download/",
-			"/suriya-movies-collections-download/", "/vijayakanth-movie-collections-download/",
-			"/rajinikanth-movie-collections-download/", "/chiyaan-vikram-movie-collections-download/",
-			"/kamal-haasan-movie-collections-download/", "/bhagyaraj-movie-collections-download/",
-			"/actor-sasikumar-movies-collections/", "/actor-nakul-movies-collections/",
-			"/actor-siddharth-movies-collection/", "/actor-cheran-movies-collection/",
-			"/actor-vimal-movies-collection/", "/actor-vijay-movies-collection/", "/actor-ramarajan-movies-collection/",
-			"/actor-simbu-movies-collection/", "/actor-sathiyaraj-movies-collection/",
-			"/actor-appukutty-movies-collection/", "/actor-surya-movies-collection/",
-			"/actor-murali-movies-collection/", "/actor-mohan-movies-collection/",
-			"/actor-sarathkumar-movies-collection/", "/actor-bhagyaraj-movies-collection/",
-			"/actor-mgr-movies-collection/", "/actor-vishal-movies-collection/",
-			"/actor-vijayakanth-movies-collection/", "/actor-sivakarthikeyan-movies-collection/",
-			"/actor-prashanth-movies-collection/", "/actor-prabhu-movies-collection/",
-			"/actor-prabhu-deva-movies-collection/", "/actor-parthiepan-movies-collection/",
-			"/actor-kamal-hassan-movies-collection/", "/actor-arjun-movies-collection/",
-			"/actor-rajinikanth-movies-collection/", "/actor-madhavan-movies-collection/",
-			"/actor-vikram-movie-collections/", "/actor-jeeva-movies-collection/", "/actor-dhaunsh-movies-collection/",
-			"/actor-dinesh-movies-collection/", "/actor-vijay-sethupathi-movies-collection/",
-			"/actor-arya-movies-collection/", "/actor-jayam-ravi-movies-collection/", "/actor-ajith-movies-collection/",
-			"/actor-karthik-movies-collection/", "/actor-rajkiran-movies-collection/",
-			"/actor-karthi-movies-collection/", "/actor-sivaji-ganesan-movies-collection/",
-			"/actor-kunal-movies-collection/", "/tamil-movies/a/", "/tamil-movies/b/", "/tamil-movies/c/",
-			"/tamil-movies/d/", "/tamil-movies/e/", "/tamil-movies/f/", "/tamil-movies/g/", "/tamil-movies/h/",
-			"/tamil-movies/i/", "/tamil-movies/j/", "/tamil-movies/k/", "/tamil-movies/l/", "/tamil-movies/m/",
-			"/tamil-movies/n/", "/tamil-movies/o/", "/tamil-movies/p/", "/tamil-movies/q/", "/tamil-movies/r/",
-			"/tamil-movies/s/", "/tamil-movies/t/", "/tamil-movies/u/", "/tamil-movies/v/", "/tamil-movies/w/",
-			"/tamil-movies/x/", "/tamil-movies/y/", "/tamil-movies/z/" };
+
+	/**
+	 * Category -> "Y" / "N". Only categories marked "Y" are re-scraped. Their old
+	 * rows are removed from the downloaded Excel first, then the fresh data is
+	 * added. Categories marked "N" are left untouched in the Excel.
+	 */
+	private static final Map<String, String> CATEGORY_FLAGS = new LinkedHashMap<>();
+
+	private static void add(String flag, String subcategory) {
+		CATEGORY_FLAGS.put(subcategory, flag);
+	}
+
+	static {
+		// ---- Year wise ----
+		add("Y", "/tamil-2026-movies/");
+		add("Y", "/moviesda-tamil-movies-2026/");
+		add("N", "/tamil-2025-movies/");
+		add("N", "/tamil-2024-movies/");
+		add("N", "/tamil-2023-movies/");
+		add("N", "/tamil-2022-movies/");
+		add("N", "/tamil-2021-movies/");
+		add("N", "/tamil-2020-movies/");
+		add("N", "/tamil-2019-movies/");
+		add("N", "/tamil-2018-movies/");
+		add("N", "/tamil-2017-movies/");
+		add("N", "/tamil-2016-movies/");
+		add("N", "/tamil-2015-movies/");
+		add("N", "/tamil-2012-movies/");
+		add("N", "/tamil-hd-movies-download/");
+
+		// ---- Collections ----
+		add("N", "/thala-ajith-movies-collection-download/");
+		add("N", "/mgr-movies-collection-download/");
+		add("N", "/madhavan-movies-collection-download/");
+		add("N", "/arjun-movies-collection-download/");
+		add("N", "/jiiva-movies-collection-download/");
+		add("N", "/jayam-ravi-movies-collection-download/");
+		add("N", "/vishal-movies-collection-download/");
+		add("N", "/silambarasan-movies-collection-download/");
+		add("N", "/vijay-sethupathi-movies-collection-download/");
+		add("N", "/dhanush-movies-collection-download/");
+		add("N", "/suriya-movies-collections-download/");
+		add("N", "/vijayakanth-movie-collections-download/");
+		add("N", "/rajinikanth-movie-collections-download/");
+		add("N", "/chiyaan-vikram-movie-collections-download/");
+		add("N", "/kamal-haasan-movie-collections-download/");
+		add("N", "/bhagyaraj-movie-collections-download/");
+
+		// ---- Actor wise ----
+		add("N", "/actor-sasikumar-movies-collections/");
+		add("N", "/actor-nakul-movies-collections/");
+		add("N", "/actor-siddharth-movies-collection/");
+		add("N", "/actor-cheran-movies-collection/");
+		add("N", "/actor-vimal-movies-collection/");
+		add("N", "/actor-vijay-movies-collection/");
+		add("N", "/actor-ramarajan-movies-collection/");
+		add("N", "/actor-simbu-movies-collection/");
+		add("N", "/actor-sathiyaraj-movies-collection/");
+		add("N", "/actor-appukutty-movies-collection/");
+		add("N", "/actor-surya-movies-collection/");
+		add("N", "/actor-murali-movies-collection/");
+		add("N", "/actor-mohan-movies-collection/");
+		add("N", "/actor-sarathkumar-movies-collection/");
+		add("N", "/actor-bhagyaraj-movies-collection/");
+		add("N", "/actor-mgr-movies-collection/");
+		add("N", "/actor-vishal-movies-collection/");
+		add("N", "/actor-vijayakanth-movies-collection/");
+		add("N", "/actor-sivakarthikeyan-movies-collection/");
+		add("N", "/actor-prashanth-movies-collection/");
+		add("N", "/actor-prabhu-movies-collection/");
+		add("N", "/actor-prabhu-deva-movies-collection/");
+		add("N", "/actor-parthiepan-movies-collection/");
+		add("N", "/actor-kamal-hassan-movies-collection/");
+		add("N", "/actor-arjun-movies-collection/");
+		add("N", "/actor-rajinikanth-movies-collection/");
+		add("N", "/actor-madhavan-movies-collection/");
+		add("N", "/actor-vikram-movie-collections/");
+		add("N", "/actor-jeeva-movies-collection/");
+		add("N", "/actor-dhaunsh-movies-collection/");
+		add("N", "/actor-dinesh-movies-collection/");
+		add("N", "/actor-vijay-sethupathi-movies-collection/");
+		add("N", "/actor-arya-movies-collection/");
+		add("N", "/actor-jayam-ravi-movies-collection/");
+		add("N", "/actor-ajith-movies-collection/");
+		add("N", "/actor-karthik-movies-collection/");
+		add("N", "/actor-rajkiran-movies-collection/");
+		add("N", "/actor-karthi-movies-collection/");
+		add("N", "/actor-sivaji-ganesan-movies-collection/");
+		add("N", "/actor-kunal-movies-collection/");
+
+		// ---- Alphabet wise ----
+		add("N", "/tamil-movies/a/");
+		add("N", "/tamil-movies/b/");
+		add("N", "/tamil-movies/c/");
+		add("N", "/tamil-movies/d/");
+		add("N", "/tamil-movies/e/");
+		add("N", "/tamil-movies/f/");
+		add("N", "/tamil-movies/g/");
+		add("N", "/tamil-movies/h/");
+		add("N", "/tamil-movies/i/");
+		add("N", "/tamil-movies/j/");
+		add("N", "/tamil-movies/k/");
+		add("N", "/tamil-movies/l/");
+		add("N", "/tamil-movies/m/");
+		add("N", "/tamil-movies/n/");
+		add("N", "/tamil-movies/o/");
+		add("N", "/tamil-movies/p/");
+		add("N", "/tamil-movies/q/");
+		add("N", "/tamil-movies/r/");
+		add("N", "/tamil-movies/s/");
+		add("N", "/tamil-movies/t/");
+		add("N", "/tamil-movies/u/");
+		add("N", "/tamil-movies/v/");
+		add("N", "/tamil-movies/w/");
+		add("N", "/tamil-movies/x/");
+		add("N", "/tamil-movies/y/");
+		add("N", "/tamil-movies/z/");
+	}
 
 	private static final int TIMEOUT = 20000; // Increased to 20 seconds timeout
 	private static final int MAX_RETRIES = 3; // Number of retries for failed requests
@@ -76,26 +160,131 @@ public class MovieScraperAPI {
 	private static final File file = new File(filePath);
 	public static Scanner sc = new Scanner(System.in);
 
+	/** Old rows removed from Excel, kept in memory so we can restore them if scraping brings nothing. */
+	private static final Map<String, List<String[]>> removedRows = new LinkedHashMap<>();
+
 	public static void main(String[] args) throws Exception {
-		System.out.println("Enter the Base URL: Example: https://moviesda31.com");
+		List<String> selected = getSelectedSubcategories();
+		if (selected.isEmpty()) {
+			System.out.println("No category is marked 'Y'. Nothing to process.");
+			return;
+		}
+		System.out.println("Categories marked 'Y' (" + selected.size() + "): " + selected);
+
+		System.out.println("Enter the Base URL: Example: https://moviesda33.com");
 		BASE_URL = sc.next();
+
+		UploadFileAPI uploadFile = new UploadFileAPI();
+
+		// STEP 1 & 2: download existing Excel, read all rows, drop 'Y' category rows.
+		// If this fails, we abort here so the old file on WorkDrive is never overwritten.
+		loadExistingData(uploadFile, selected);
+
+		// STEP 3: scrape only the 'Y' categories
+		Set<String> scrapedCategories = new HashSet<>();
 		try {
-			for (String subcategory : SUBCATEGORIES) {
+			for (String subcategory : selected) {
+				int before = movieList.size();
 				try {
 					processSubcategory(subcategory);
 				} catch (Exception e) {
 					System.err.println("Failed to process subcategory: " + subcategory + ", Error: " + e.getMessage());
 				}
+				if (movieList.size() > before) {
+					scrapedCategories.add(toCategoryKey(subcategory));
+				}
 			}
-
 		} catch (Exception e) {
 			System.err.println("Error: " + e.getMessage());
 			e.printStackTrace();
 		} finally {
+			// Safety: if a 'Y' category returned nothing (site down etc.), put its old rows back
+			restoreOldRows(scrapedCategories);
 
+			// STEP 4: write Excel and upload
 			moviesExtract();
-			UploadFileAPI uploadFile = new UploadFileAPI();
 			uploadFile.uploadToWorkDrive(file);
+		}
+	}
+
+	private static List<String> getSelectedSubcategories() {
+		List<String> selected = new ArrayList<>();
+		for (Map.Entry<String, String> entry : CATEGORY_FLAGS.entrySet()) {
+			if ("Y".equalsIgnoreCase(entry.getValue())) {
+				selected.add(entry.getKey());
+			}
+		}
+		return selected;
+	}
+
+	/** Same format that was already being stored in the Category column: "/tamil-2026-movies/" -> "tamil-2026-movies" */
+	private static String toCategoryKey(String subcategory) {
+		return subcategory.replace("/", "");
+	}
+
+	private static void loadExistingData(UploadFileAPI api, List<String> selected) throws Exception {
+		Set<String> removeKeys = new HashSet<>();
+		for (String s : selected) {
+			removeKeys.add(toCategoryKey(s));
+		}
+
+		System.out.println("Downloading existing " + filePath + " from WorkDrive...");
+		byte[] excelBytes = api.downloadExcelFromWorkDrive(filePath);
+		if (excelBytes == null) {
+			System.out.println(filePath + " not found in WorkDrive folder. Starting with empty data.");
+			return;
+		}
+
+		Movie.setIdGenerater(1); // ids are re-numbered sequentially
+		int kept = 0;
+		int removed = 0;
+
+		try (Workbook workbook = new XSSFWorkbook(new ByteArrayInputStream(excelBytes))) {
+			Sheet sheet = workbook.getSheet("Movies DB");
+			if (sheet == null) {
+				sheet = workbook.getSheetAt(0);
+			}
+			DataFormatter fmt = new DataFormatter();
+
+			// Row 0 is header. Columns: 0 ID, 1 Name, 2 Sublink, 3 Category, 4 Link, 5 PageURL
+			for (int i = 1; i <= sheet.getLastRowNum(); i++) {
+				Row row = sheet.getRow(i);
+				if (row == null) {
+					continue;
+				}
+				String name = fmt.formatCellValue(row.getCell(1));
+				String subLink = fmt.formatCellValue(row.getCell(2));
+				String category = fmt.formatCellValue(row.getCell(3)).trim();
+				String link = fmt.formatCellValue(row.getCell(4));
+				String pageUrl = fmt.formatCellValue(row.getCell(5));
+
+				if (name.isEmpty() && category.isEmpty()) {
+					continue; // blank row
+				}
+
+				if (removeKeys.contains(category)) {
+					removedRows.computeIfAbsent(category, k -> new ArrayList<>())
+							.add(new String[] { name, subLink, category, link, pageUrl });
+					removed++;
+				} else {
+					movieList.add(new Movie(name, subLink, category, link, pageUrl));
+					kept++;
+				}
+			}
+		}
+		System.out.println("Existing data read. Kept rows: " + kept + ", Removed rows (Y categories): " + removed);
+	}
+
+	private static void restoreOldRows(Set<String> scrapedCategories) {
+		for (Map.Entry<String, List<String[]>> entry : removedRows.entrySet()) {
+			if (scrapedCategories.contains(entry.getKey())) {
+				continue;
+			}
+			System.err.println("No new data scraped for '" + entry.getKey() + "'. Restoring "
+					+ entry.getValue().size() + " old rows.");
+			for (String[] r : entry.getValue()) {
+				movieList.add(new Movie(r[0], r[1], r[2], r[3], r[4]));
+			}
 		}
 	}
 
@@ -139,10 +328,10 @@ public class MovieScraperAPI {
 				}
 				System.out.println("No pagination link found for " + subcategoryUrl + ". Defaulting to max "
 						+ MAX_PAGES_WITHOUT_PAGINATION + " pages.");
-				return MAX_PAGES_WITHOUT_PAGINATION; // Default to 10 pages if no pagination link found
+				return MAX_PAGES_WITHOUT_PAGINATION; // Default if no pagination link found
 			} catch (HttpStatusException e) {
 				System.out.println("HTTP error fetching " + e.getStatusCode() + " - " + e.getMessage());
-				return MAX_PAGES_WITHOUT_PAGINATION; // Default to 10 pages on HTTP error
+				return MAX_PAGES_WITHOUT_PAGINATION; // Default on HTTP error
 			} catch (Exception e) {
 				retries++;
 				System.err.println(
@@ -150,7 +339,7 @@ public class MovieScraperAPI {
 				if (retries == MAX_RETRIES) {
 					System.err.println("Failed to get last page number for " + subcategoryUrl + " after " + MAX_RETRIES
 							+ " retries. Defaulting to max " + MAX_PAGES_WITHOUT_PAGINATION + " pages.");
-					return MAX_PAGES_WITHOUT_PAGINATION; // Default to 10 pages after retries
+					return MAX_PAGES_WITHOUT_PAGINATION; // Default after retries
 				}
 				Thread.sleep(DELAY_MS * retries); // Incremental delay for retries
 			}
@@ -159,6 +348,7 @@ public class MovieScraperAPI {
 	}
 
 	private static boolean scrapePage(String pageUrl, String subcategory) throws Exception {
+		String category = toCategoryKey(subcategory);
 		int retries = 0;
 		while (retries < MAX_RETRIES) {
 			try {
@@ -176,9 +366,8 @@ public class MovieScraperAPI {
 					String name = movieLink.text().trim();
 					String sublink = movieLink.attr("href");
 					String fullLink = BASE_URL + sublink;
-					subcategory = subcategory.replace("/", "");
 
-					Movie movie = new Movie(name, sublink, subcategory, fullLink, pageUrl);
+					Movie movie = new Movie(name, sublink, category, fullLink, pageUrl);
 					movieList.add(movie);
 				}
 				return true; // Success, page processed

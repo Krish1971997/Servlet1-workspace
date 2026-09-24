@@ -176,7 +176,7 @@ public class SchedulerEngine {
 				rows = Integer.parseInt(r[1]);
 			}
 			case "NEON_SYNC_PUSH" -> {
-				oneWeekAgo = LocalDateTime.now().minusDays(7);
+				oneWeekAgo = LocalDateTime.now().minusDays(7000);
 				lastRun = s.getLastRunAt();
 				// First-ever run for this scheduler: lastRunAt is null.
 				// Without this guard, lastRun.isBefore(...) below throws
