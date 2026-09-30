@@ -470,6 +470,14 @@ to {
 					<div class="form-group mb-2">
 						<label>Note</label> <input type="text" name="note"
 							value="${txn.note}">
+						</div>
+					<div class="form-group mb-2">
+						<label>Payment Type</label> <select name="paymentType">
+							<option value="">&#8212;</option>
+							<c:forEach var="pt" items="${paymentTypes}">
+								<option value="${pt.name}" ${pt.name==txn.paymentType?'selected':''}>${pt.name}</option>
+							</c:forEach>
+						</select>
 					</div>
 
 					<div class="flex gap-1 mt-2" style="flex-wrap: wrap">
@@ -479,6 +487,9 @@ to {
 							onclick="openCopyModal()">&#128203; Copy</button>
 						<button type="button" class="btn btn-outline"
 							onclick="toggleMoveBook()">&#128230; Move</button>
+						<a class="btn btn-outline"
+							href="${pageContext.request.contextPath}/settlement?txnId=${txn.id}">&#128278;
+							Settlements</a>
 						<button type="button" class="btn btn-danger ml-auto"
 							onclick="if(confirm('Delete this transaction permanently?'))document.getElementById('delForm').submit()">
 							&#x1F5D1; Delete</button>

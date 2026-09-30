@@ -488,6 +488,41 @@ tbody tr.selected {
 					Example: &gt;=10 AND &lt;=50 &rarr; amounts between 10 and 50</div>
 			</div>
 
+			<%-- Payment types multi-select (ported from Android) --%>
+			<div class="form-group">
+				<label>Payment Type (multi-select)</label>
+				<div class="multi-select-wrap" id="msPayWrap">
+					<div class="ms-trigger" onclick="toggleMS('msPay')" id="msPayTrigger">
+						<span id="msPayLabel">All Payment Types</span> <span
+							style="font-size: .65rem; opacity: .6">&#9660;</span>
+					</div>
+					<div class="ms-dropdown" id="msPay">
+						<c:forEach var="pt" items="${paymentTypes}">
+							<label class="ms-option"> <input type="checkbox"
+								name="paymentType" value="${pt.name}"
+								${filter.paymentTypes != null && filter.paymentTypes.contains(pt.name) ? 'checked' : ''}
+								onchange="updateMSTags('msPay','msPayLabel','msPayTags','paymentType')">
+								${pt.name}
+							</label>
+						</c:forEach>
+						<div class="ms-clear-row">
+							<button type="button" class="ms-clear-btn"
+								onclick="clearMSOptions('msPay','msPayLabel','msPayTags','paymentType')">&#10005;
+								Clear</button>
+						</div>
+					</div>
+					<div class="ms-selected-tags" id="msPayTags"></div>
+				</div>
+			</div>
+			<%-- Attachment filter (ported from Android) --%>
+			<div class="form-group">
+				<label>Attachment</label> <select name="attachment">
+					<option value="">All</option>
+					<option value="with" ${filter.hasAttachment == true ? 'selected' : ''}>With attachment</option>
+					<option value="without" ${filter.hasAttachment == false ? 'selected' : ''}>Without attachment</option>
+				</select>
+			</div>
+
 			<div class="flex gap-1 mt-2">
 				<button type="submit" class="btn btn-primary btn-sm">&#128269;
 					Apply</button>

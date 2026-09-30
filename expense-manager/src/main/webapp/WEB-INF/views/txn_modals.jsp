@@ -380,6 +380,17 @@ if (request.getAttribute("incomeCategories") == null) {
 						</c:forEach>
 					</select>
 				</div>
+				<div class="form-group">
+					<label>Payment Type</label> <select name="paymentType"
+						tabindex="55">
+						<option value="">&#8212;</option>
+						<c:forEach var="pt" items="${paymentTypes}">
+							<option value="${pt.name}" ${pt['default'] ? 'selected' : ''}>${pt.name}</option>
+						</c:forEach>
+					</select>
+				</div>
+				<div id="kwSuggestion"
+					style="display: none; cursor: pointer; margin: .4rem 0; padding: .45rem .7rem; border-radius: 8px; background: #fef9c3; color: #854d0e; font-size: .82rem"></div>
 				<div class="form-group" style="grid-column: 1/-1">
 					<label>Note</label> <input type="text" name="note" tabindex="6"
 						placeholder="Optional">
@@ -715,6 +726,46 @@ if (request.getAttribute("incomeCategories") == null) {
     // Plain Enter → Save
     submitTxn((e.shiftKey || e.ctrlKey) ? 'continue' : 'save');
 });
+
+	// ── Keyword → category suggestion + note autocomplete (ported from
+	// Android TransactionEntryActivity) ─────────────────────────
+	var kwTimer = null, kwMatch = null, noteTimer = null;
+	var CTXK = '${pageContext.request.contextPath}';
+	var noteEl = document.querySelector('#incomeForm [name="note"]');
+	var kwChip = document.getElementById('kwSuggestion');
+	if (noteEl && kwChip) {
+		noteEl.addEventListener('input', function() {
+			clearTimeout(kwTimer);
+			clearTimeout(noteTimer);
+			var v = this.value.trim();
+			if (v.length < 3) { kwChip.style.display = 'none'; return; }
+			kwTimer = setTimeout(function() {
+				var type = document.getElementById('txnTypeField').value;
+				fetch(CTXK + '/keywords/suggest?note=' + encodeURIComponent(v) + '&type=' + type)
+					.then(function(r) { return r.json(); })
+					.then(function(d) {
+						if (d.categoryName) {
+							kwMatch = d;
+							kwChip.textContent = '\uD83D\uDCA1 ' + d.categoryName
+								+ (d.subCategoryName ? ' \u25B8 ' + d.subCategoryName : '')
+								+ ' \u2014 tap to apply';
+							kwChip.style.display = 'block';
+						} else { kwMatch = null; kwChip.style.display = 'none'; }
+					}).catch(function() {});
+			}, 350);
+		});
+		kwChip.addEventListener('click', function() {
+			if (!kwMatch) return;
+			var catSel = document.getElementById('incCategorySelect');
+			catSel.value = kwMatch.category;
+			filterSubCat('inc');
+			if (kwMatch.subCategory) {
+				var subSel = document.getElementById('incSubCatSelect');
+				subSel.value = kwMatch.subCategory;
+			}
+			kwChip.style.display = 'none';
+		});
+	}
 
 	// ── Auto-fill datetime on load ───────────────────────────
 	document.addEventListener('DOMContentLoaded', function() {

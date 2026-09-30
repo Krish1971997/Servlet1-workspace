@@ -378,7 +378,7 @@
 								style="font-size: .82rem; color: var(--text-2); white-space: nowrap">
 								<c:if test="${not empty b.createdAt}">
                                     ${b.createdAt.toLocalDate()}<br>
-									<span style="color: var(--text-3)">${b.createdAt.toLocalTime().toString().substring(0,8)}</span>
+									<span style="color: var(--text-3)">${b.createdTimeFormatted}</span>
 								</c:if>
 							</td>
 							<td

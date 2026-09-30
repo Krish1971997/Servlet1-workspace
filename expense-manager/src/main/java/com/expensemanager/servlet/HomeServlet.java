@@ -2,6 +2,7 @@ package com.expensemanager.servlet;
 
 import com.expensemanager.dao.CategoryDAO;
 import com.expensemanager.dao.ColumnDefinitionDAO;
+import com.expensemanager.dao.PaymentTypeDAO;
 import com.expensemanager.dao.SubCategoryDAO;
 import com.expensemanager.dao.TransactionDAO;
 import com.expensemanager.model.DayGroup;
@@ -83,6 +84,7 @@ public class HomeServlet extends HttpServlet {
 			req.setAttribute("incomeColumns", colDAO.findByType("INCOME"));
 			req.setAttribute("expenseColumns", colDAO.findByType("EXPENSE"));
 			req.setAttribute("subCategories", scDAO.findAll());
+			req.setAttribute("paymentTypes", new PaymentTypeDAO().findAll());
 
 		} catch (Exception e) {
 			log.error("HomeServlet error: {}", e.getMessage(), e);
@@ -184,6 +186,23 @@ public class HomeServlet extends HttpServlet {
 		String search = req.getParameter("search");
 		if (search != null && !search.isBlank())
 			f.setNoteSearch(search);
+
+		// Payment types multi-select (ported from Android)
+		String[] pts = req.getParameterValues("paymentType");
+		if (pts != null && pts.length > 0) {
+			List<String> vals = new ArrayList<>();
+			for (String pv : pts)
+				if (!pv.isBlank())
+					vals.add(pv);
+			if (!vals.isEmpty())
+				f.setPaymentTypes(vals);
+		}
+		// Attachment filter (ported from Android)
+		String att = req.getParameter("attachment");
+		if ("with".equals(att))
+			f.setHasAttachment(true);
+		else if ("without".equals(att))
+			f.setHasAttachment(false);
 
 		try {
 			String p = req.getParameter("page");

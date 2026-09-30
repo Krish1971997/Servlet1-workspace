@@ -28,15 +28,15 @@
 
 	<context-param>
 		<param-name>DB_URL</param-name>
-		<param-value>jdbc:postgresql://ep-plain-meadow-apr9n2ix-pooler.c-7.us-east-1.aws.neon.tech/mydb_test?sslmode=require</param-value>
+		<param-value>jdbc:postgresql://localhost/mydb</param-value>
 	</context-param>
 	<context-param>
 		<param-name>DB_USER</param-name>
-		<param-value>neondb_owner</param-value>
+		<param-value>postgres</param-value>
 	</context-param>
 	<context-param>
 		<param-name>DB_PASSWORD</param-name>
-		<param-value>npg_30bZIuKdaFvM</param-value>
+		<param-value>postgres</param-value>
 	</context-param> 
 	
 	<!-- Gmail Config — ADD to web.xml context-params section -->

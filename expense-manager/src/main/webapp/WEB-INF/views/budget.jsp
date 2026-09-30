@@ -278,6 +278,43 @@ to {
 		</select>
 	</form>
 
+	<%-- Budget Allocation Template (ported from Android BudgetConfigActivity) --%>
+	<div class="card mt-2">
+		<div class="card-title">&#128220; Allocation Template</div>
+		<p style="font-size: .78rem; color: var(--text-2)">
+			Save per-category amounts once, then apply the template to any
+			month. Existing category rows are never overwritten.</p>
+		<form method="post"
+			action="${pageContext.request.contextPath}/budget-template">
+			<input type="hidden" name="action" value="saveTemplate"> <input
+				type="hidden" name="year" value="${selYear}"> <input
+				type="hidden" name="month" value="${selMonth}">
+			<table style="width: 100%; font-size: .85rem">
+				<c:forEach var="cat" items="${expenseCategories}">
+					<tr>
+						<td>${cat.name}</td>
+						<td style="width: 140px"><input type="number"
+							name="templateAmt" step="0.01" min="0"
+							placeholder="Amount" style="width: 100%"></td>
+						<td style="display: none"><input type="hidden"
+							name="templateCatId" value="${cat.id}"></td>
+					</tr>
+				</c:forEach>
+			</table>
+			<button type="submit" class="btn btn-outline btn-sm mt-1">&#128190;
+				Save Template</button>
+		</form>
+		<form method="post"
+			action="${pageContext.request.contextPath}/budget-template"
+			class="mt-1">
+			<input type="hidden" name="action" value="applyTemplate"> <input
+				type="hidden" name="year" value="${selYear}"> <input
+				type="hidden" name="month" value="${selMonth}">
+			<button type="submit" class="btn btn-primary btn-sm">&#10003;
+				Apply Template to ${selMonth}/${selYear}</button>
+		</form>
+	</div>
+
 	<%-- Summary strip --%>
 	<c:choose>
 		<c:when test="${not empty budget}">

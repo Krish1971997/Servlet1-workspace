@@ -5,6 +5,7 @@ import org.slf4j.LoggerFactory;
 import com.expensemanager.model.Transaction;
 import com.expensemanager.model.TransactionFilter;
 import com.expensemanager.util.DBConnection;
+import com.google.gson.JsonObject;
 
 import java.math.BigDecimal;
 import java.sql.*;
@@ -24,12 +25,12 @@ public class TransactionDAO {
 
 	// ── INSERT ────────────────────────────────────────────
 	public int insert(Transaction t) throws SQLException {
-		String sql = """
-				INSERT INTO transactions
-				  (type, txn_datetime, amount, category_id, sub_categories_id, note, book_id)
-				VALUES (?::txn_type, ?, ?, ?, ?, ?, ?)
-				RETURNING id
-				""";
+			String sql = """
+					INSERT INTO transactions
+					  (type, txn_datetime, amount, category_id, sub_categories_id, note, book_id, payment_type)
+					VALUES (?::txn_type, ?, ?, ?, ?, ?, ?, ?)
+					RETURNING id
+					""";
 		Connection conn = db.getConnection();
 		try (PreparedStatement ps = conn.prepareStatement(sql)) {
 			ps.setString(1, t.getType().name());
@@ -45,6 +46,10 @@ public class TransactionDAO {
 				ps.setInt(7, t.getBookId());
 			else
 				ps.setNull(7, Types.INTEGER);
+			if (t.getPaymentType() != null && !t.getPaymentType().isBlank())
+				ps.setString(8, t.getPaymentType().trim());
+			else
+				ps.setNull(8, Types.VARCHAR);
 			ResultSet rs = ps.executeQuery();
 			rs.next();
 			int newId = rs.getInt(1);
@@ -63,15 +68,16 @@ public class TransactionDAO {
 	// ── UPDATE ────────────────────────────────────────────
 	public void update(Transaction oldT, Transaction newT) throws SQLException {
 		String sql = """
-				UPDATE transactions SET
-				  txn_datetime      = ?,
-				  amount            = ?,
-				  category_id       = ?,
-				  sub_categories_id = ?,
-				  note              = ?,
-				  book_id           = ?,
-				  updated_at=NOW()
-				WHERE id = ?
+			UPDATE transactions SET
+			  txn_datetime      = ?,
+			  amount            = ?,
+			  category_id       = ?,
+			  sub_categories_id = ?,
+			  note              = ?,
+			  book_id           = ?,
+			  payment_type      = ?,
+			  updated_at=NOW()
+			WHERE id = ?
 				""";
 		Connection conn = db.getConnection();
 		try (PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -84,7 +90,11 @@ public class TransactionDAO {
 				ps.setNull(4, Types.INTEGER);
 			ps.setString(5, newT.getNote());
 			ps.setInt(6, newT.getBookId());
-			ps.setInt(7, oldT.getId());
+			if (newT.getPaymentType() != null && !newT.getPaymentType().isBlank())
+				ps.setString(7, newT.getPaymentType().trim());
+			else
+				ps.setNull(7, Types.VARCHAR);
+			ps.setInt(8, oldT.getId());
 			ps.executeUpdate();
 		} finally {
 			db.releaseConnection(conn);
@@ -121,6 +131,21 @@ public class TransactionDAO {
 		try {
 			prevAutoCommit = conn.getAutoCommit();
 			conn.setAutoCommit(false);
+
+			// Soft-delete (ported from Android RecycleBinDao): snapshot the row
+			// + its children into recycle_bin BEFORE deleting, so restore can
+			// put everything back with the original ids.
+			RecycleBinDAO bin = new RecycleBinDAO();
+			JsonObject row = RecycleBinDAO.snapshotRow(conn, "transactions", id);
+			if (row != null) {
+				row.add("receipts_data", RecycleBinDAO.snapshotChildren(conn,
+						"SELECT row_to_json(t) FROM transaction_receipts t WHERE transaction_id = ?", id));
+				row.add("custom_values_data", RecycleBinDAO.snapshotChildren(conn,
+						"SELECT row_to_json(t) FROM transaction_custom_values t WHERE transaction_id = ?", id));
+				row.add("audit_data", RecycleBinDAO.snapshotChildren(conn,
+						"SELECT row_to_json(t) FROM transaction_audit_log t WHERE transaction_id = ?", id));
+				bin.put(conn, "transactions", id, null, row);
+			}
 
 			try (PreparedStatement ps = conn.prepareStatement("DELETE FROM transactions WHERE id = ?")) {
 				ps.setInt(1, id);
@@ -682,6 +707,32 @@ public class TransactionDAO {
 			sql.append(" )");
 
 		}
+		// Multi-book (All Transactions page — ported from Android)
+		if (f.getBookIds() != null && !f.getBookIds().isEmpty()) {
+			sql.append(" AND t.book_id IN (");
+			for (int i = 0; i < f.getBookIds().size(); i++) {
+				sql.append(i > 0 ? ",?" : "?");
+				params.add(f.getBookIds().get(i));
+			}
+			sql.append(")");
+		}
+		// Payment types (ported from Android)
+		if (f.getPaymentTypes() != null && !f.getPaymentTypes().isEmpty()) {
+			sql.append(" AND (");
+			for (int i = 0; i < f.getPaymentTypes().size(); i++) {
+				if (i > 0)
+					sql.append(" OR ");
+				sql.append("t.payment_type = ?");
+				params.add(f.getPaymentTypes().get(i));
+			}
+			sql.append(")");
+		}
+		// Attachment filter (ported from Android)
+		if (f.getHasAttachment() != null) {
+			sql.append(f.getHasAttachment()
+					? " AND EXISTS (SELECT 1 FROM transaction_receipts tr WHERE tr.transaction_id = t.id)"
+					: " AND NOT EXISTS (SELECT 1 FROM transaction_receipts tr WHERE tr.transaction_id = t.id)");
+		}
 		if (!countOnly) {
 			String col = resolveSortColumn(f.getSortBy());
 			String dir = "asc".equalsIgnoreCase(f.getSortDir()) ? "ASC" : "DESC";
@@ -701,9 +752,9 @@ public class TransactionDAO {
 
 	private String baseSelect() {
 		return """
-				SELECT t.id, t.type, t.txn_datetime, t.amount, t.note, t.book_id,
-				       c.id AS cat_id, c.name AS cat_name,
-				       sc.sub_categories_id AS subcat_id, sc.name AS subcat_name
+			SELECT t.id, t.type, t.txn_datetime, t.amount, t.note, t.book_id, t.payment_type,
+			       c.id AS cat_id, c.name AS cat_name,
+			       sc.sub_categories_id AS subcat_id, sc.name AS subcat_name
 				FROM transactions t
 				LEFT JOIN categories c ON t.category_id=c.id
 				LEFT JOIN sub_categories sc ON t.sub_categories_id=sc.sub_categories_id
@@ -755,6 +806,7 @@ public class TransactionDAO {
 		t.setSubcategoryid(rs.getInt("subcat_id"));
 		t.setSubCategoryName(rs.getString("subcat_name"));
 		t.setBookId(rs.getInt("book_id"));
+		t.setPaymentType(rs.getString("payment_type"));
 		return t;
 	}
 
@@ -787,6 +839,38 @@ public class TransactionDAO {
 
 	private String resolveSortColumn(String key) {
 		return SORT_COLUMNS.getOrDefault(key, "t.txn_datetime");
+	}
+
+	/**
+	 * Ported from Android SettlementLink flow — candidate transactions the
+	 * given transaction can still be linked against (not itself, not already
+	 * linked on either side, same book, newest first).
+	 */
+	public List<Transaction> findUnlinkedCandidates(int excludeTxnId, Integer bookId) throws SQLException {
+		StringBuilder sql = new StringBuilder(baseSelect());
+		sql.append(" WHERE t.id <> ? AND t.id NOT IN (")
+				.append("SELECT settlement_txn_id FROM settlement_links ")
+				.append("UNION SELECT linked_txn_id FROM settlement_links)");
+		List<Object> params = new ArrayList<>();
+		params.add(excludeTxnId);
+		if (bookId != null && bookId > 0) {
+			sql.append(" AND t.book_id = ?");
+			params.add(bookId);
+		}
+		sql.append(" ORDER BY t.txn_datetime DESC LIMIT 100");
+		List<Transaction> list = new ArrayList<>();
+		Connection conn = db.getConnection();
+		try (PreparedStatement ps = conn.prepareStatement(sql.toString())) {
+			for (int i = 0; i < params.size(); i++)
+				ps.setObject(i + 1, params.get(i));
+			try (ResultSet rs = ps.executeQuery()) {
+				while (rs.next())
+					list.add(mapRow(rs));
+			}
+		} finally {
+			db.releaseConnection(conn);
+		}
+		return list;
 	}
 
 }

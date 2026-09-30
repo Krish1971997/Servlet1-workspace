@@ -1,6 +1,7 @@
 package com.expensemanager.model;
 
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 
 public class BackupMetadata {
 
@@ -157,6 +158,10 @@ public class BackupMetadata {
 
 	public void setExternal_ID(String external_ID) {
 		this.external_ID = external_ID;
+	}
+
+	public String getCreatedTimeFormatted() {
+		return createdAt == null ? "" : createdAt.toLocalTime().format(DateTimeFormatter.ofPattern("HH:mm:ss"));
 	}
 
 }

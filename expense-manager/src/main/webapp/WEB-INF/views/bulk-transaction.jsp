@@ -249,8 +249,9 @@
 					<th class="col-date">Date &amp; Time *</th>
 					<th class="col-amt">Amount (&#8377;) *</th>
 					<th class="col-cat">Category *</th>
-					<th class="col-sub">Sub Category</th>
-					<th class="col-note">Note</th>
+                    <th class="col-sub">Sub Category</th>
+					<th class="col-pay">Payment</th>
+                    <th class="col-note">Note</th>
 					<th class="col-del"></th>
 				</tr>
 			</thead>
@@ -291,6 +292,12 @@
     <c:forEach var="s" items="${subCategories}">
     SUBCATS.push({ id: '${s.id}', name: '${s.name}', catId: '${s.category_id}' });
     </c:forEach>
+    var PAY_TYPES = [];
+    var PAY_DEFAULT = '';
+    <c:forEach var="pt" items="${paymentTypes}">
+    PAY_TYPES.push('${pt.name}');
+    if ('${pt['default']}') PAY_DEFAULT = '${pt.name}';
+    </c:forEach>
 
     var rowCount = 0;
 
@@ -319,6 +326,15 @@
         return html;
     }
 
+    function buildPayOptions(selected) {
+        var sel = (selected !== undefined && selected !== null && selected !== '') ? selected : PAY_DEFAULT;
+        var html = '<option value="">-</option>';
+        PAY_TYPES.forEach(function(p) {
+            html += '<option value="' + p + '"' + (p === sel ? ' selected' : '') + '>' + p + '</option>';
+        });
+        return html;
+    }
+
     /* ── Add a single row ────────────────────────────────── */
     function bulkAddRow(opts) {
         opts = opts || {};
@@ -343,6 +359,7 @@
           +     buildCatOptions(type, opts.catId || '')
           + '</select></td>'
           + '<td class="col-sub"><select class="b-sub" disabled><option value="">-</option></select></td>'
+          + '<td class="col-pay"><select class="b-pay">' + buildPayOptions(opts.payType || '') + '</select></td>'
           + '<td class="col-note"><input type="text" class="b-note" placeholder="Optional"></td>'
           + '<td class="col-del"><button class="bulk-del-btn" onclick="bulkDelRow(\'' + id + '\')" title="Remove row">&#10005;</button></td>';
 
@@ -579,12 +596,18 @@
                 amtEl.style.borderColor = '';
                 catEl.style.borderColor = '';
             }
+            /* Ported from Android BulkAddActivity — payment type required per row */
+            var pay = tr.querySelector('.b-pay').value;
+            var payEl = tr.querySelector('.b-pay');
+            if (!pay) { valid = false; payEl.style.borderColor = '#ef4444'; }
+            else { payEl.style.borderColor = ''; }
             entries.push({
                 type         : tr.querySelector('.b-type').value,
                 dateTime     : tr.querySelector('.b-date').value,
                 amount       : amt,
                 categoryid   : cat,
                 subcategoryId: tr.querySelector('.b-sub').value,
+                paymentType  : pay,
                 note         : tr.querySelector('.b-note').value
             });
         });
@@ -623,6 +646,7 @@
             fd.append('amount',        e.amount);
             fd.append('categoryid',    e.categoryid);
             fd.append('subcategoryId', e.subcategoryId);
+            fd.append('paymentType',   e.paymentType);
             fd.append('note',          e.note);
             fetch(CTX + '/transactions', { method:'POST', body:fd })
                 .then(function(r){ if (r.ok) saved++; else failed++; saveNext(i+1); })

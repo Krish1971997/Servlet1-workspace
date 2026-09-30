@@ -24,6 +24,9 @@
 		Categories</button>
 	<button class="tab" onclick="switchTab('colTab', this)">Custom
 		Columns</button>
+	<button class="tab" onclick="switchTab('payTab', this)">Payment
+		Types</button>
+	<button class="tab" onclick="switchTab('kwTab', this)">Keywords</button>
 </div>
 
 <!-- ═══ CATEGORIES ═══ -->
@@ -152,7 +155,7 @@
 			method="post" class="form-grid mb-2">
 			<input type="hidden" name="action" value="addSubCategory">
 			<div class="form-group">
-				<label>Parent Category *</label> <select name="categoryId" required>
+				<label>Parent Category *</label> <select name="category_id" required>
 					<option value="">Select&#8230;</option>
 					<optgroup label="Income">
 						<c:forEach var="cat" items="${incomeCategories}">
@@ -307,6 +310,131 @@
 	</div>
 </div>
 
+<%-- ═══ PAYMENT TYPES (ported from Android Settings) ═══ --%>
+<div id="payTab" class="tab-panel" style="display: none">
+	<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem">
+		<div class="card">
+			<div class="card-title">Add Payment Type</div>
+			<form method="post" action="${pageContext.request.contextPath}/settings">
+				<input type="hidden" name="action" value="addPaymentType">
+				<input type="hidden" name="tab" value="pay">
+				<div class="form-group">
+					<label>Name *</label> <input type="text" name="name"
+						placeholder="e.g. UPI" required>
+				</div>
+				<button type="submit" class="btn btn-primary btn-sm">Add</button>
+			</form>
+		</div>
+		<div class="card">
+			<div class="card-title">Payment Types</div>
+			<table style="width: 100%">
+				<tbody>
+					<c:forEach var="pt" items="${paymentTypes}">
+						<tr>
+							<td>${pt.name} <c:if test="${pt['default']}"><span
+									class="badge income">default</span></c:if></td>
+							<td style="text-align: right">
+								<c:if test="${not pt['default']}">
+									<form method="post"
+										action="${pageContext.request.contextPath}/settings"
+										style="display: inline">
+										<input type="hidden" name="action" value="defaultPaymentType">
+										<input type="hidden" name="id" value="${pt.id}">
+										<button class="btn btn-outline btn-sm">Set Default</button>
+									</form>
+								</c:if>
+								<form method="post"
+									action="${pageContext.request.contextPath}/settings"
+									style="display: inline"
+									onsubmit="return confirm('Delete \'${pt.name}\'? Existing transactions keep their value.')">
+									<input type="hidden" name="action" value="deletePaymentType">
+									<input type="hidden" name="id" value="${pt.id}">
+									<button class="btn btn-danger btn-sm">&#x2715;</button>
+								</form>
+							</td>
+						</tr>
+					</c:forEach>
+				</tbody>
+			</table>
+		</div>
+	</div>
+</div>
+
+<%-- ═══ KEYWORD MAPPINGS (ported from Android Settings → Keywords) ═══ --%>
+<div id="kwTab" class="tab-panel" style="display: none">
+	<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem">
+		<div class="card">
+			<div class="card-title">Add Keyword Mapping</div>
+			<p style="font-size: .78rem; color: var(--text-2)">
+				When a note contains the keyword, the add-transaction screen
+				suggests this category / sub-category.</p>
+			<form method="post" action="${pageContext.request.contextPath}/settings">
+				<input type="hidden" name="action" value="addKeyword">
+				<input type="hidden" name="tab" value="kw">
+				<div class="form-group">
+					<label>Keyword *</label> <input type="text" name="keyword"
+						placeholder="e.g. lunch" required>
+				</div>
+				<div class="form-group">
+					<label>Type *</label> <select name="type" required>
+						<option value="EXPENSE">Expense</option>
+						<option value="INCOME">Income</option>
+					</select>
+				</div>
+				<div class="form-group">
+					<label>Category *</label> <select name="category_id" required>
+						<option value="">Select&#8230;</option>
+						<c:forEach var="cat" items="${incomeCategories}">
+							<option value="${cat.id}">[I] ${cat.name}</option>
+						</c:forEach>
+						<c:forEach var="cat" items="${expenseCategories}">
+							<option value="${cat.id}">[E] ${cat.name}</option>
+						</c:forEach>
+					</select>
+				</div>
+				<div class="form-group">
+					<label>Sub Category</label> <select name="subCategoryId">
+						<option value="">None</option>
+						<c:forEach var="sc" items="${allSubCategories}">
+							<option value="${sc.id}">${sc.name}</option>
+						</c:forEach>
+					</select>
+				</div>
+				<button type="submit" class="btn btn-primary btn-sm">Add</button>
+			</form>
+		</div>
+		<div class="card">
+			<div class="card-title">Saved Mappings</div>
+			<table style="width: 100%">
+				<tbody>
+					<c:forEach var="m" items="${keywordMappings}">
+						<tr>
+							<td><strong>${m.keyword}</strong><br>
+								<span style="font-size: .75rem; color: var(--text-2)">${m.categoryName}
+									${not empty m.subCategoryName ? '▸ ' += m.subCategoryName : ''}</span></td>
+							<td style="text-align: right">
+								<form method="post"
+									action="${pageContext.request.contextPath}/settings"
+									style="display: inline"
+									onsubmit="return confirm('Delete mapping \'${m.keyword}\'?')">
+									<input type="hidden" name="action" value="deleteKeyword">
+									<input type="hidden" name="id" value="${m.id}">
+									<button class="btn btn-danger btn-sm">&#x2715;</button>
+								</form>
+							</td>
+						</tr>
+					</c:forEach>
+					<c:if test="${empty keywordMappings}">
+						<tr>
+							<td class="empty-state">No keyword mappings yet</td>
+						</tr>
+					</c:if>
+				</tbody>
+			</table>
+		</div>
+	</div>
+</div>
+
 <script>
 function switchTab(tabId, btn) {
   document.querySelectorAll('.tab-panel').forEach(p => p.style.display = 'none');
@@ -322,6 +450,10 @@ document.addEventListener('DOMContentLoaded', function() {
     switchTab('subcatTab', document.querySelectorAll('.tab')[1]);
   } else if (tab === 'col') {
     switchTab('colTab', document.querySelectorAll('.tab')[2]);
+  } else if (tab === 'pay') {
+    switchTab('payTab', document.querySelectorAll('.tab')[3]);
+  } else if (tab === 'kw') {
+    switchTab('kwTab', document.querySelectorAll('.tab')[4]);
   }
   // default: catTab already visible
 });

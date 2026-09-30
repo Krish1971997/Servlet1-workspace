@@ -9,6 +9,8 @@ import org.slf4j.LoggerFactory;
 
 import com.expensemanager.dao.CategoryDAO;
 import com.expensemanager.dao.ColumnDefinitionDAO;
+import com.expensemanager.dao.KeywordMappingDAO;
+import com.expensemanager.dao.PaymentTypeDAO;
 import com.expensemanager.dao.SubCategoryDAO;
 import com.expensemanager.model.Category;
 
@@ -42,6 +44,9 @@ public class SettingsServlet extends HttpServlet {
 			req.setAttribute("allSubCategories", scDao.findAll());
 			req.setAttribute("incomeColumns", colDao.findByType("INCOME"));
 			req.setAttribute("expenseColumns", colDao.findByType("EXPENSE"));
+			// Ported from Android Settings — payment types & keyword mappings
+			req.setAttribute("paymentTypes", new PaymentTypeDAO().findAll());
+			req.setAttribute("keywordMappings", new KeywordMappingDAO().findAll());
 		} catch (Exception e) {
 			req.setAttribute("dbError", e.getMessage());
 		}
@@ -112,6 +117,44 @@ public class SettingsServlet extends HttpServlet {
 				int id = Integer.parseInt(req.getParameter("id"));
 				new ColumnDefinitionDAO().delete(id);
 				redirectTab = "col";
+				break;
+			}
+			// ── Ported from Android Settings → Payment Types ──
+			case "addPaymentType": {
+				String name = req.getParameter("name");
+				if (name != null && !name.isBlank())
+					new PaymentTypeDAO().insert(name.trim());
+				redirectTab = "pay";
+				break;
+			}
+			case "defaultPaymentType": {
+				int id = Integer.parseInt(req.getParameter("id"));
+				new PaymentTypeDAO().setDefault(id);
+				redirectTab = "pay";
+				break;
+			}
+			case "deletePaymentType": {
+				int id = Integer.parseInt(req.getParameter("id"));
+				new PaymentTypeDAO().delete(id);
+				redirectTab = "pay";
+				break;
+			}
+			// ── Ported from Android Settings → Keywords ──
+			case "addKeyword": {
+				String keyword = req.getParameter("keyword");
+				String kwType = req.getParameter("type");
+				int kwCatId = Integer.parseInt(req.getParameter("categoryId"));
+				String subStr = req.getParameter("subCategoryId");
+				Integer subId = (subStr != null && !subStr.isBlank()) ? Integer.parseInt(subStr) : null;
+				if (keyword != null && !keyword.isBlank())
+					new KeywordMappingDAO().insert(keyword.trim(), kwType, kwCatId, subId, null);
+				redirectTab = "kw";
+				break;
+			}
+			case "deleteKeyword": {
+				int id = Integer.parseInt(req.getParameter("id"));
+				new KeywordMappingDAO().delete(id);
+				redirectTab = "kw";
 				break;
 			}
 			}

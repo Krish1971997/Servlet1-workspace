@@ -143,6 +143,30 @@ if (request.getAttribute("_allBooks") == null) {
 .book-dropdown-footer {
 	padding: .5rem 1rem .6rem;
 }
+
+/* ── Navbar overflow fix ── */
+.navbar {
+	flex-wrap: wrap;
+	height: auto;
+	min-height: 56px;
+	row-gap: .25rem;
+}
+
+.nav-links {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: .15rem .1rem;
+	flex: 1 1 auto;
+	justify-content: flex-end;
+}
+
+.nav-links a {
+	white-space: nowrap;
+	font-size: .82rem;
+	padding-left: .55rem;
+	padding-right: .55rem;
+}
 </style>
 </head>
 <body>
@@ -200,7 +224,17 @@ if (request.getAttribute("_allBooks") == null) {
 						class="${activePage=='log'?'active':''}">&#128203; Log</a> <a
 						href="${pageContext.request.contextPath}/schedulers"
 						class="${activePage=='schedulers'?'active':''}">&#9201;
-						Schedulers</a> <a href="${pageContext.request.contextPath}/settings"
+						Schedulers</a> <a
+						href="${pageContext.request.contextPath}/insights"
+						class="${activePage=='insights'?'active':''}">&#128161;
+						Insights</a> <a
+						href="${pageContext.request.contextPath}/foodtracker"
+						class="${activePage=='food'?'active':''}">&#127869;
+						Food</a> <a
+						href="${pageContext.request.contextPath}/recycle"
+						class="${activePage=='recycle'?'active':''}">&#x1F5D1;
+						Recycle Bin</a> <a
+						href="${pageContext.request.contextPath}/settings"
 						class="btn btn-outline btn-sm">&#9881; Settings</a>
 				</div>
 			</c:when>

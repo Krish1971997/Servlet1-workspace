@@ -15,6 +15,7 @@ import org.slf4j.LoggerFactory;
 
 import com.expensemanager.dao.CategoryDAO;
 import com.expensemanager.dao.ColumnDefinitionDAO;
+import com.expensemanager.dao.PaymentTypeDAO;
 import com.expensemanager.dao.ReceiptDAO;
 import com.expensemanager.dao.SubCategoryDAO;
 import com.expensemanager.dao.TransactionDAO;
@@ -58,6 +59,8 @@ public class TransactionServlet extends HttpServlet {
 			req.setAttribute("incomeColumns", colDAO.findByType("INCOME"));
 			req.setAttribute("expenseColumns", colDAO.findByType("EXPENSE"));
 			req.setAttribute("subCategories", scDAO.findAll());
+			// Ported from Android: payment types for the add/edit form + filter
+			req.setAttribute("paymentTypes", new PaymentTypeDAO().findAll());
 			req.setAttribute("filter", filter);
 			req.setAttribute("page", filter.getPage());
 			req.setAttribute("totalPages", totalPages);
@@ -93,6 +96,10 @@ public class TransactionServlet extends HttpServlet {
 		String amountStr = req.getParameter("amount");
 		String catIdStr = req.getParameter("categoryid");
 		String subcatStr = req.getParameter("subcategory_id");
+		// Bug fix (ported from Android bulk-add flow): bulk rows post the sub
+		// category as "subcategoryId" — accept both param names.
+		if (subcatStr == null || subcatStr.isBlank())
+			subcatStr = req.getParameter("subcategoryId");
 		String note = req.getParameter("note");
 		String dateStr = req.getParameter("dateTime");
 
@@ -111,6 +118,10 @@ public class TransactionServlet extends HttpServlet {
 		if (subcatStr != null && !subcatStr.isBlank())
 			t.setSubcategoryid(Integer.parseInt(subcatStr.trim()));
 		t.setNote(note);
+		// Ported from Android TransactionEntryActivity — payment type on every entry
+		String paymentType = req.getParameter("paymentType");
+		if (paymentType != null && !paymentType.isBlank())
+			t.setPaymentType(paymentType.trim());
 		t.setDateTime(dateStr != null && !dateStr.isBlank() ? LocalDateTime.parse(dateStr) : LocalDateTime.now());
 
 		Map<String, String> customs = new LinkedHashMap<>();
@@ -245,6 +256,23 @@ public class TransactionServlet extends HttpServlet {
 		String search = req.getParameter("search");
 		if (search != null && !search.isBlank())
 			f.setNoteSearch(search);
+
+		// Payment types multi-select (ported from Android)
+		String[] pts = req.getParameterValues("paymentType");
+		if (pts != null && pts.length > 0) {
+			List<String> vals = new ArrayList<>();
+			for (String s : pts)
+				if (!s.isBlank())
+					vals.add(s);
+			if (!vals.isEmpty())
+				f.setPaymentTypes(vals);
+		}
+		// Attachment filter (ported from Android)
+		String att = req.getParameter("attachment");
+		if ("with".equals(att))
+			f.setHasAttachment(true);
+		else if ("without".equals(att))
+			f.setHasAttachment(false);
 
 		// Pagination
 		try {

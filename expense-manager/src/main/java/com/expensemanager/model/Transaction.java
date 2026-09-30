@@ -24,6 +24,7 @@ public class Transaction {
 	private LocalDateTime createdAt;
 	private LocalDateTime updatedAt;
 	private Map<String, String> customValues = new LinkedHashMap<>();
+	private String paymentType; // plain text payment method (Cash, UPI, ...)
 
 	public Transaction() {
 	}
@@ -137,5 +138,13 @@ public class Transaction {
 
 	public void addCustomValue(String key, String value) {
 		this.customValues.put(key, value);
+	}
+
+	public String getPaymentType() {
+		return paymentType;
+	}
+
+	public void setPaymentType(String paymentType) {
+		this.paymentType = paymentType;
 	}
 }

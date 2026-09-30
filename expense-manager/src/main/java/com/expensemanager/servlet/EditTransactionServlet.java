@@ -11,6 +11,7 @@ import org.slf4j.LoggerFactory;
 import com.expensemanager.dao.AuditLogDAO;
 import com.expensemanager.dao.CashBookDAO;
 import com.expensemanager.dao.CategoryDAO;
+import com.expensemanager.dao.PaymentTypeDAO;
 import com.expensemanager.dao.ReceiptDAO;
 import com.expensemanager.dao.SubCategoryDAO;
 import com.expensemanager.dao.TransactionDAO;
@@ -58,6 +59,8 @@ public class EditTransactionServlet extends HttpServlet {
 			req.setAttribute("expenseCategories", catDAO.findByType("EXPENSE", bookId));
 			req.setAttribute("subCategories", scDAO.findAll());
 			req.setAttribute("cashbooks", cashDAO.findAll());
+			// Ported from Android: payment types for the edit form
+			req.setAttribute("paymentTypes", new PaymentTypeDAO().findAll());
 
 			// ── Prev / Next navigation (same order as the transactions list:
 			// most-recent first) so you can step through records without
@@ -161,6 +164,7 @@ public class EditTransactionServlet extends HttpServlet {
 				}
 
 				dup.setNote(dupNote != null ? dupNote : src.getNote());
+				dup.setPaymentType(src.getPaymentType());
 				dup.setDateTime(dupDateTime);
 
 				// Custom values copy (unchanged from source)
@@ -198,8 +202,15 @@ public class EditTransactionServlet extends HttpServlet {
 			updated.setAmount(new BigDecimal(amountStr));
 			updated.setDateTime(LocalDateTime.parse(dateStr));
 			updated.setCategoryId(Integer.parseInt(catIdStr));
-			updated.setNote(note);
-			updated.setBookId(Integer.parseInt(newbookid));
+				updated.setNote(note);
+				updated.setBookId(Integer.parseInt(newbookid));
+
+				// Ported from Android — payment type editable on update
+				String paymentType = req.getParameter("paymentType");
+				if (paymentType != null && !paymentType.isBlank())
+					updated.setPaymentType(paymentType.trim());
+				else
+					updated.setPaymentType(old.getPaymentType());
 
 			// Need category name for audit log
 			CategoryDAO catDAO = new CategoryDAO();
